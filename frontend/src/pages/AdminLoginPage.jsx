@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Eye, EyeOff, ChevronLeft, AlertCircle, Mail } from 'lucide-react';
-
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
+import { Lock, Eye, EyeOff, ChevronLeft, AlertCircle } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 
 export default function AdminLoginPage() {
   const navigate = useNavigate();
@@ -25,7 +23,7 @@ export default function AdminLoginPage() {
     };
   }, [navigate]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
       setError('Please enter both email and password.');
@@ -33,15 +31,23 @@ export default function AdminLoginPage() {
     }
     setLoading(true);
     setError('');
-    setTimeout(() => {
-      if (email.trim().toLowerCase() === ADMIN_EMAIL?.toLowerCase() && password === ADMIN_PASSWORD) {
-        sessionStorage.setItem('streetiq_admin', JSON.stringify({ email: email.trim(), at: Date.now() }));
+    try {
+      const { data, error: rpcErr } = await supabase.rpc('admin_login', {
+        p_username: email.trim().toLowerCase(),
+        p_password: password,
+      });
+      if (rpcErr) throw rpcErr;
+      if (data === true) {
+        sessionStorage.setItem('streetiq_admin', JSON.stringify({ at: Date.now() }));
         navigate('/admin/dashboard', { replace: true });
       } else {
         setError('Invalid email or password.');
-        setLoading(false);
       }
-    }, 600);
+    } catch {
+      setError('Authentication failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -89,26 +95,23 @@ export default function AdminLoginPage() {
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>
               Email
             </label>
-            <div style={{ position: 'relative' }}>
-              <Mail size={16} color="rgba(255,255,255,0.25)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-              <input
-                id="admin-email"
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                autoComplete="email"
-                autoCapitalize="none"
-                style={{
-                  width: '100%', padding: '14px 16px 14px 42px',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 12, color: '#fff', fontSize: 15,
-                  fontFamily: "'Inter', sans-serif",
-                  outline: 'none',
-                }}
-                placeholder="contact@mnmworks.xyz"
-              />
-            </div>
+            <input
+              id="admin-email"
+              type="email"
+              value={email}
+              onChange={e => { setEmail(e.target.value); setError(''); }}
+              autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              style={{
+                width: '100%', padding: '14px 16px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 12, color: '#fff', fontSize: 15,
+                fontFamily: "'Inter', sans-serif",
+                outline: 'none',
+              }}
+            />
           </div>
           <div>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>
@@ -119,7 +122,7 @@ export default function AdminLoginPage() {
                 id="admin-password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={e => { setPassword(e.target.value); setError(''); }}
                 autoComplete="current-password"
                 style={{
                   width: '100%', padding: '14px 48px 14px 16px',
@@ -129,7 +132,6 @@ export default function AdminLoginPage() {
                   fontFamily: "'Inter', sans-serif",
                   outline: 'none',
                 }}
-                placeholder="••••••••••"
               />
               <button
                 type="button"

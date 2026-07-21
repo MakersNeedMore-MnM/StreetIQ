@@ -506,7 +506,7 @@ export default function AdminDashboard() {
           </div>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700 }}>Admin Dashboard</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>StreetIQ · {adminInfo?.email}</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>StreetIQ Internal</div>
           </div>
         </div>
         <button
