@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, Rectangle, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Polygon, CircleMarker, useMapEvents, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import {
@@ -40,51 +40,253 @@ function StatusBadge({ status }) {
   );
 }
 
-function AreaSelector({ onBoundsChange }) {
-  const [start, setStart] = useState(null);
-  const [end, setEnd] = useState(null);
-  const [drawing, setDrawing] = useState(false);
+function ZoomController() {
+  const map = useMap();
+  return (
+    <div style={{
+      position: 'absolute', top: 10, right: 10, zIndex: 1000,
+      display: 'flex', flexDirection: 'column', gap: 4,
+    }}>
+      {['+', '−'].map((sym, i) => (
+        <button
+          key={sym}
+          type="button"
+          onClick={() => i === 0 ? map.zoomIn() : map.zoomOut()}
+          style={{
+            width: 32, height: 32, borderRadius: 8,
+            background: 'rgba(28,28,30,0.92)', border: '1px solid rgba(255,255,255,0.15)',
+            color: '#fff', fontSize: 18, fontWeight: 400, lineHeight: 1,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+          }}
+        >{sym}</button>
+      ))}
+    </div>
+  );
+}
 
+function DrawHandler({ mode, points, onAddPoint, onClose }) {
+  const map = useMap();
   useMapEvents({
-    mousedown(e) {
-      setStart(e.latlng);
-      setEnd(e.latlng);
-      setDrawing(true);
-    },
-    mousemove(e) {
-      if (drawing) setEnd(e.latlng);
-    },
-    mouseup(e) {
-      if (drawing && start) {
-        setEnd(e.latlng);
-        setDrawing(false);
-        const bounds = L.latLngBounds(start, e.latlng);
-        onBoundsChange(bounds);
+    click(e) {
+      if (mode !== 'draw') return;
+      if (points.length >= 3) {
+        const first = map.latLngToContainerPoint(points[0]);
+        const clicked = map.latLngToContainerPoint(e.latlng);
+        if (first.distanceTo(clicked) < 18) { onClose(); return; }
       }
-    },
-    touchstart(e) {
-      const touch = e.latlng;
-      setStart(touch); setEnd(touch); setDrawing(true);
-    },
-    touchmove(e) {
-      if (drawing) setEnd(e.latlng);
-    },
-    touchend(e) {
-      if (drawing && start) {
-        setDrawing(false);
-        const bounds = L.latLngBounds(start, end);
-        onBoundsChange(bounds);
-      }
+      onAddPoint(e.latlng);
     },
   });
+  return null;
+}
 
-  if (!start || !end) return null;
-  const bounds = [[start.lat, start.lng], [end.lat, end.lng]];
+function AreaMapPicker({ onAreaChange }) {
+  const [mode, setMode] = useState('hand');
+  const [points, setPoints] = useState([]);
+  const [closed, setClosed] = useState(false);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const searchTimer = useRef(null);
+
+  const emitGeoJSON = (pts, isClosed) => {
+    if (pts.length < 3 || !isClosed) { onAreaChange(null); return; }
+    const coords = [...pts.map(p => [p.lng, p.lat]), [pts[0].lng, pts[0].lat]];
+    onAreaChange(JSON.stringify({ type: 'Polygon', coordinates: [coords] }));
+  };
+
+  const handleAddPoint = (latlng) => {
+    if (closed) return;
+    setPoints(prev => { const next = [...prev, latlng]; emitGeoJSON(next, false); return next; });
+  };
+
+  const handleClose = () => {
+    setClosed(true);
+    setPoints(prev => { emitGeoJSON(prev, true); return prev; });
+  };
+
+  const clearDrawing = () => {
+    setPoints([]); setClosed(false); onAreaChange(null);
+  };
+
+  const searchPlace = async (q) => {
+    if (!q.trim()) { setResults([]); setShowResults(false); return; }
+    setSearching(true);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&polygon_geojson=1&limit=6`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const data = await res.json();
+      setResults(data);
+      setShowResults(true);
+    } catch { setResults([]); }
+    setSearching(false);
+  };
+
+  const handleSearchInput = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => searchPlace(val), 420);
+  };
+
+  const selectResult = (item) => {
+    setShowResults(false);
+    setQuery(item.display_name.split(',')[0]);
+    const geo = item.geojson;
+    if (geo && (geo.type === 'Polygon' || geo.type === 'MultiPolygon')) {
+      const ring = geo.type === 'Polygon' ? geo.coordinates[0] : geo.coordinates[0][0];
+      const pts = ring.slice(0, -1).map(([lng, lat]) => L.latLng(lat, lng));
+      setPoints(pts);
+      setClosed(true);
+      onAreaChange(JSON.stringify({ type: 'Polygon', coordinates: [ring] }));
+    } else {
+      const bb = item.boundingbox;
+      const sw = L.latLng(parseFloat(bb[0]), parseFloat(bb[2]));
+      const ne = L.latLng(parseFloat(bb[1]), parseFloat(bb[3]));
+      const pts = [sw, L.latLng(sw.lat, ne.lng), ne, L.latLng(ne.lat, sw.lng)];
+      setPoints(pts);
+      setClosed(true);
+      onAreaChange(JSON.stringify({ type: 'Polygon', coordinates: [[
+        [sw.lng, sw.lat], [ne.lng, sw.lat], [ne.lng, ne.lat], [sw.lng, ne.lat], [sw.lng, sw.lat],
+      ]] }));
+    }
+  };
+
+  const polyPositions = points.map(p => [p.lat, p.lng]);
+  const previewLine = mode === 'draw' && !closed && points.length > 0
+    ? [...polyPositions]
+    : [];
+
   return (
-    <Rectangle
-      bounds={bounds}
-      pathOptions={{ color: '#0A84FF', weight: 2, fillColor: '#0A84FF', fillOpacity: 0.15 }}
-    />
+    <div style={{ position: 'relative' }}>
+      <div style={{ position: 'relative', marginBottom: 8 }}>
+        <input
+          type="text"
+          value={query}
+          onChange={handleSearchInput}
+          onFocus={() => results.length && setShowResults(true)}
+          placeholder="Search city, district, area..."
+          style={{
+            width: '100%', padding: '10px 14px 10px 36px',
+            background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 10, color: '#fff', fontSize: 13,
+            fontFamily: "'Inter', sans-serif", outline: 'none', boxSizing: 'border-box',
+          }}
+        />
+        <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 15, opacity: 0.4 }}>🔍</span>
+        {searching && <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>...</span>}
+        {showResults && results.length > 0 && (
+          <div style={{
+            position: 'absolute', top: '110%', left: 0, right: 0, zIndex: 9000,
+            background: '#2C2C2E', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 10, overflow: 'hidden',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+          }}>
+            {results.map((r, i) => (
+              <button
+                key={r.place_id}
+                type="button"
+                onMouseDown={() => selectResult(r)}
+                style={{
+                  width: '100%', padding: '10px 14px', background: 'transparent',
+                  border: 'none', borderBottom: i < results.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                  color: '#fff', fontSize: 12, fontFamily: "'Inter', sans-serif",
+                  cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 2,
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <span style={{ fontWeight: 600 }}>{r.display_name.split(',')[0]}</span>
+                <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>{r.display_name.split(',').slice(1, 3).join(',').trim()}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+        {[['hand', '✋ Pan'], ['draw', '✏️ Draw']].map(([m, lbl]) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => { setMode(m); if (m === 'hand' && !closed && points.length > 0) {} }}
+            style={{
+              flex: 1, padding: '8px 0', borderRadius: 8, fontSize: 12, fontWeight: 600,
+              fontFamily: "'Inter', sans-serif", cursor: 'pointer',
+              background: mode === m ? (m === 'draw' ? 'rgba(10,132,255,0.2)' : 'rgba(255,255,255,0.1)') : 'rgba(255,255,255,0.04)',
+              border: mode === m ? (m === 'draw' ? '1px solid rgba(10,132,255,0.5)' : '1px solid rgba(255,255,255,0.2)') : '1px solid rgba(255,255,255,0.07)',
+              color: mode === m ? (m === 'draw' ? '#0A84FF' : '#fff') : 'rgba(255,255,255,0.4)',
+            }}
+          >{lbl}</button>
+        ))}
+        {points.length > 0 && (
+          <button
+            type="button"
+            onClick={clearDrawing}
+            style={{
+              padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+              fontFamily: "'Inter', sans-serif", cursor: 'pointer',
+              background: 'rgba(255,69,58,0.1)', border: '1px solid rgba(255,69,58,0.3)', color: '#FF453A',
+            }}
+          >✕ Clear</button>
+        )}
+      </div>
+      {mode === 'draw' && !closed && (
+        <div style={{ fontSize: 11, color: 'rgba(255,159,10,0.8)', marginBottom: 6 }}>
+          {points.length === 0 ? '🖱 Click on the map to start placing points' : points.length < 3 ? `${points.length} point${points.length > 1 ? 's' : ''} placed — need at least 3` : 'Click near the first point ● to close the shape'}
+        </div>
+      )}
+      {closed && points.length >= 3 && (
+        <div style={{ fontSize: 11, color: '#30D158', marginBottom: 6 }}>✓ Area defined — {points.length} vertices</div>
+      )}
+      <div style={{ height: 300, borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', position: 'relative', cursor: mode === 'draw' ? 'crosshair' : 'grab' }}>
+        <MapContainer
+          center={[28.6139, 77.2090]}
+          zoom={10}
+          zoomControl={false}
+          scrollWheelZoom={false}
+          doubleClickZoom={false}
+          touchZoom={false}
+          dragging={mode === 'hand'}
+          style={{ height: '100%', width: '100%' }}
+        >
+          <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+          <ZoomController />
+          <DrawHandler
+            mode={mode}
+            points={points}
+            onAddPoint={handleAddPoint}
+            onClose={handleClose}
+          />
+          {closed && points.length >= 3 ? (
+            <Polygon
+              positions={polyPositions}
+              pathOptions={{ color: '#0A84FF', weight: 2, fillColor: '#0A84FF', fillOpacity: 0.18 }}
+            />
+          ) : previewLine.length > 1 ? (
+            <Polyline
+              positions={previewLine}
+              pathOptions={{ color: '#0A84FF', weight: 2, dashArray: '5 4', opacity: 0.8 }}
+            />
+          ) : null}
+          {!closed && points.map((p, i) => (
+            <CircleMarker
+              key={i}
+              center={[p.lat, p.lng]}
+              radius={i === 0 ? 7 : 5}
+              pathOptions={{
+                color: i === 0 ? '#30D158' : '#0A84FF',
+                fillColor: i === 0 ? '#30D158' : '#0A84FF',
+                fillOpacity: 1, weight: 2,
+              }}
+            />
+          ))}
+        </MapContainer>
+      </div>
+    </div>
   );
 }
 
@@ -213,7 +415,7 @@ function GovFormModal({ initial, onClose, onSubmit }) {
   const [canEdit, setCanEdit] = useState(initial?.can_edit || false);
   const [canRemove, setCanRemove] = useState(initial?.can_remove || false);
   const [areaLabel, setAreaLabel] = useState(initial?.area_label || '');
-  const [bounds, setBounds] = useState(null);
+  const [areaGeoJSON, setAreaGeoJSON] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const isEdit = !!initial;
@@ -225,18 +427,6 @@ function GovFormModal({ initial, onClose, onSubmit }) {
     setSaving(true);
     setError('');
     try {
-      let areaGeoJSON = null;
-      if (bounds) {
-        const sw = bounds.getSouthWest();
-        const ne = bounds.getNorthEast();
-        areaGeoJSON = JSON.stringify({
-          type: 'Polygon',
-          coordinates: [[
-            [sw.lng, sw.lat], [ne.lng, sw.lat],
-            [ne.lng, ne.lat], [sw.lng, ne.lat], [sw.lng, sw.lat],
-          ]],
-        });
-      }
       await onSubmit({
         deptName: deptName.trim(),
         username: username.trim(),
@@ -329,24 +519,8 @@ function GovFormModal({ initial, onClose, onSubmit }) {
             <input value={areaLabel} onChange={e => setAreaLabel(e.target.value)} placeholder="e.g. South Delhi" style={inputStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Area Bounds — draw on map</label>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', marginBottom: 8 }}>Click and drag on the map to select the area this gov ID can access.</div>
-            {bounds && (
-              <div style={{ fontSize: 12, color: '#30D158', marginBottom: 8 }}>
-                ✓ Area selected: {bounds.getSouthWest().lat.toFixed(4)}, {bounds.getSouthWest().lng.toFixed(4)} → {bounds.getNorthEast().lat.toFixed(4)}, {bounds.getNorthEast().lng.toFixed(4)}
-              </div>
-            )}
-            <div style={{ height: 220, borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <MapContainer center={[28.6139, 77.2090]} zoom={10} zoomControl style={{ height: '100%', width: '100%' }} dragging={false}>
-                <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
-                <AreaSelector onBoundsChange={setBounds} />
-              </MapContainer>
-            </div>
-            {bounds && (
-              <button type="button" onClick={() => setBounds(null)} style={{ marginTop: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,69,58,0.7)', fontSize: 12, fontFamily: "'Inter', sans-serif" }}>
-                ✗ Clear area selection
-              </button>
-            )}
+            <label style={labelStyle}>Access Area</label>
+            <AreaMapPicker onAreaChange={setAreaGeoJSON} />
           </div>
           {error && (
             <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(255,69,58,0.1)', border: '1px solid rgba(255,69,58,0.25)', color: '#FF453A', fontSize: 13 }}>
