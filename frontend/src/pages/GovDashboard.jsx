@@ -71,6 +71,21 @@ function RulerHandler({ active, onAddPoint }) {
   return null;
 }
 
+function FitBoundsToArea({ polygon }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!polygon || polygon.length === 0) return;
+    const bounds = L.latLngBounds(polygon);
+    map.fitBounds(bounds, { padding: [24, 24], maxZoom: 14 });
+  }, [map]);
+  return null;
+}
+
+const WORLD_RING = [
+  [-90, -180], [-90, 0], [-90, 180],
+  [90, 180], [90, 0], [90, -180], [-90, -180],
+];
+
 function PermGate({ allowed, feature, children }) {
   if (allowed) return children;
   return (
@@ -243,6 +258,8 @@ export default function GovDashboard() {
     ? areaPolygon.reduce((acc, [lat, lng]) => [acc[0] + lat / areaPolygon.length, acc[1] + lng / areaPolygon.length], [0, 0])
     : [28.6139, 77.209];
 
+  const areaBounds = areaPolygon ? L.latLngBounds(areaPolygon).pad(0.02) : null;
+
   const rulerTotal = rulerPoints.length > 1 ? totalDistanceM(rulerPoints) : 0;
 
   const TABS = [
@@ -365,21 +382,30 @@ export default function GovDashboard() {
             ) : (
               <MapContainer
                 center={mapCenter}
-                zoom={areaPolygon ? 11 : 10}
+                zoom={areaPolygon ? 12 : 10}
                 zoomControl={false}
                 scrollWheelZoom={false}
                 doubleClickZoom={false}
                 touchZoom={false}
+                maxBounds={areaBounds || undefined}
+                maxBoundsViscosity={areaBounds ? 1.0 : 0}
                 style={{ height: '100%', width: '100%', cursor: rulerMode ? 'crosshair' : 'grab' }}
               >
                 <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
                 <GovZoomCtrl />
                 <RulerHandler active={rulerMode} onAddPoint={(pt) => setRulerPoints(prev => [...prev, pt])} />
+                {areaPolygon && <FitBoundsToArea polygon={areaPolygon} />}
                 {areaPolygon && (
-                  <Polygon
-                    positions={areaPolygon}
-                    pathOptions={{ color: '#30D158', weight: 2, fillColor: '#30D158', fillOpacity: 0.04, dashArray: '6 4' }}
-                  />
+                  <>
+                    <Polygon
+                      positions={[WORLD_RING, areaPolygon]}
+                      pathOptions={{ stroke: false, fillColor: '#000', fillOpacity: 0.82 }}
+                    />
+                    <Polygon
+                      positions={areaPolygon}
+                      pathOptions={{ color: '#30D158', weight: 2, fill: false, dashArray: '6 4' }}
+                    />
+                  </>
                 )}
                 {filteredHazards.map(h => (
                   <CircleMarker

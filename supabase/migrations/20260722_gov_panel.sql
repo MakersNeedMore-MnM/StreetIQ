@@ -60,8 +60,11 @@ begin
     st_y(h.location::geometry)::float as lat,
     st_x(h.location::geometry)::float as lon
   from public.hazards h
-  where h.status not in ('rejected')
-    and (v_area is null or st_within(h.location::geometry, v_area::geometry))
+  where h.status != 'rejected'
+    and (
+      v_area is null
+      or ST_Covers(v_area::geometry, h.location::geometry)
+    )
   order by h.created_at desc;
 end;
 $$ language plpgsql security definer;
