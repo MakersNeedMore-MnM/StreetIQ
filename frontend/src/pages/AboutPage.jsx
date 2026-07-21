@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ArrowUpRight, Cpu, ShieldCheck, Zap, Wifi, Layers, Video } from 'lucide-react';
+import { ChevronLeft, ArrowUpRight, Cpu, ShieldCheck, Zap, Wifi, Layers, Video, Lock } from 'lucide-react';
 
 export default function AboutPage() {
   const navigate = useNavigate();
@@ -32,7 +32,6 @@ export default function AboutPage() {
 
   return (
     <div style={{ background: '#000', minHeight: '100vh', fontFamily: "'Inter', -apple-system, sans-serif", color: '#fff', WebkitFontSmoothing: 'antialiased' }}>
-
       <div style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
         background: 'rgba(0,0,0,0.85)',
@@ -54,9 +53,7 @@ export default function AboutPage() {
         </div>
         <div style={{ width: 72 }} />
       </div>
-
       <div style={{ paddingTop: 'calc(env(safe-area-inset-top,0px) + 72px)' }}>
-
         <div style={{ padding: '64px 28px 56px', borderBottom: '1px solid rgba(255,255,255,0.08)', textAlign: 'center' }}>
           <div style={{
             width: 80, height: 80, borderRadius: '50%', margin: '0 auto 24px',
@@ -71,7 +68,6 @@ export default function AboutPage() {
             Road intelligence that actually knows what's on the road.
           </div>
         </div>
-
         <div style={{ padding: '48px 28px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.25)', letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 18 }}>The Problem</div>
           <p style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.4, letterSpacing: -0.4, marginBottom: 16 }}>
@@ -81,7 +77,6 @@ export default function AboutPage() {
             Potholes, cracks, waterlogging, debris — they cause accidents and vehicle damage daily. Yet every navigation app assumes roads are perfect. There is no scalable system that tracks real road conditions in real time. Governments don't have the manpower. Traditional surveys can't keep up.
           </p>
         </div>
-
         <div style={{ padding: '48px 28px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.25)', letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 18 }}>Our Approach</div>
           <p style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.4, letterSpacing: -0.4, marginBottom: 16 }}>
@@ -91,7 +86,6 @@ export default function AboutPage() {
             As you drive, StreetIQ's on-device AI scans the road at 15fps through your camera. The moment a hazard is identified, it is instantly mapped and shared with every nearby driver — zero manual effort, zero privacy compromise, zero battery drain at idle.
           </p>
         </div>
-
         <div style={{ padding: '48px 28px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.25)', letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 32 }}>How It Works</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -118,7 +112,6 @@ export default function AboutPage() {
             ))}
           </div>
         </div>
-
         <div style={{ padding: '48px 28px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.25)', letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 18 }}>The Model</div>
           <p style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.4, letterSpacing: -0.4, marginBottom: 16 }}>
@@ -145,7 +138,6 @@ export default function AboutPage() {
             Training artifacts on GitHub <ArrowUpRight size={14} />
           </a>
         </div>
-
         <div style={{ padding: '40px 28px', paddingBottom: 'calc(env(safe-area-inset-bottom,0px) + 52px)', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <a
             href="https://mnmworks.xyz"
@@ -175,6 +167,24 @@ export default function AboutPage() {
             View on GitHub
             <ArrowUpRight size={18} />
           </a>
+          <button
+            onClick={() => navigate('/admin')}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '18px 22px', borderRadius: 14,
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.06)',
+              color: 'rgba(255,255,255,0.22)', fontSize: 14, fontWeight: 500,
+              fontFamily: "'Inter', sans-serif",
+              cursor: 'pointer', width: '100%',
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Lock size={14} />
+              Log in as Developer
+            </span>
+            <ChevronLeft size={14} style={{ transform: 'rotate(180deg)' }} />
+          </button>
           <div style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: 'rgba(255,255,255,0.15)' }}>
             All AI processing happens on your device · No video is ever stored
           </div>

@@ -1,9 +1,16 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 import AboutPage from './pages/AboutPage.jsx'
+import AdminLoginPage from './pages/AdminLoginPage.jsx'
+import AdminDashboard from './pages/AdminDashboard.jsx'
+
+function AdminGuard({ children }) {
+  const isAdmin = !!sessionStorage.getItem('streetiq_admin');
+  return isAdmin ? children : <Navigate to="/admin" replace />;
+}
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -11,6 +18,8 @@ createRoot(document.getElementById('root')).render(
       <Routes>
         <Route path="/" element={<App />} />
         <Route path="/about" element={<AboutPage />} />
+        <Route path="/admin" element={<AdminLoginPage />} />
+        <Route path="/admin/dashboard" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
