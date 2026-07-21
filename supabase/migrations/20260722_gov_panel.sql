@@ -37,22 +37,15 @@ grant execute on function public.gov_login to anon, authenticated;
 
 create or replace function public.gov_get_hazards(p_gov_id uuid)
 returns table (
-  id uuid,
-  type varchar,
-  severity_score int,
-  status varchar,
-  source varchar,
-  image_url text,
-  confirmation_count int,
-  created_at timestamptz,
-  lat float,
-  lon float
+  id uuid, type varchar, severity_score int, status varchar,
+  source varchar, image_url text, confirmation_count int,
+  created_at timestamptz, lat float, lon float
 ) as $$
-declare
-  v_area geography;
 begin
-  select area_bounds into v_area
-  from public.gov_accounts where id = p_gov_id and is_active = true;
+  if not exists (
+    select 1 from public.gov_accounts g
+    where g.id = p_gov_id and g.is_active = true
+  ) then return; end if;
   return query
   select
     h.id, h.type, h.severity_score, h.status, h.source, h.image_url,
@@ -61,13 +54,6 @@ begin
     st_x(h.location::geometry)::float as lon
   from public.hazards h
   where h.status != 'rejected'
-    and (
-      v_area is null
-      or ST_Covers(
-        ST_SetSRID(v_area::geometry, 4326),
-        ST_SetSRID(h.location::geometry, 4326)
-      )
-    )
   order by h.created_at desc;
 end;
 $$ language plpgsql security definer;
