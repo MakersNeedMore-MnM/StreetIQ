@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import 'leaflet.heat';
 import { useNavigate } from 'react-router-dom';
-import { Map as MapIcon, Camera, PlusCircle, LocateFixed, Square, Upload, ChevronRight, Navigation, ImagePlus, Sparkles, MapPinned, AlertTriangle, Check } from 'lucide-react';
+import { Map as MapIcon, Camera, PlusCircle, LocateFixed, Square, Upload, Navigation, AlertTriangle, Wifi } from 'lucide-react';
 import './index.css';
 import RecordView from './RecordView';
 import SearchBar from './components/SearchBar';
@@ -12,7 +12,6 @@ import DirectionsPanel from './components/DirectionsPanel';
 import NavigationHUD from './components/NavigationHUD';
 import CameraPiP from './components/CameraPiP';
 import DriveModal from './components/DriveModal';
-import LocationPickerModal from './components/LocationPickerModal';
 import { useNavigation } from './hooks/useNavigation';
 import { useGPSLocation } from './hooks/useGPSLocation';
 import { supabase, signInAnonymously } from './supabaseClient';
@@ -139,11 +138,8 @@ export default function App() {
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   const [geminiResult, setGeminiResult] = useState(null);
   const [geminiLoading, setGeminiLoading] = useState(false);
-  const [pickedLocation, setPickedLocation] = useState(null);
-  const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
-  const fileInputRef = useRef(null);
-  const reportBoundingCanvasRef = useRef(null);
+
 
   const { location: gpsLocation, speedKmh, rawLocationRef } = useGPSLocation();
   const nav = useNavigation(userLocation, speedKmh);
@@ -309,7 +305,6 @@ export default function App() {
     setImagePreviewUrl(null);
     setGeminiResult(null);
     setGeminiLoading(false);
-    setPickedLocation(null);
     setManualType('pothole');
     setManualSeverity(3);
     setSubmitSuccess(false);
@@ -327,8 +322,8 @@ export default function App() {
 
   const submitPhotoReport = async () => {
     if (!selectedImage) return;
-    const loc = pickedLocation || (userLocation ? { lat: userLocation[0], lon: userLocation[1] } : null);
-    if (!loc) return alert('Please pick a location on the map.');
+    if (!userLocation) return alert('GPS location not available. Please wait for GPS signal.');
+    const loc = { lat: userLocation[0], lon: userLocation[1] };
     setIsUploading(true);
     const optimisticId = `optimistic_${Date.now()}`;
     const optimisticHazard = {
@@ -541,55 +536,57 @@ export default function App() {
           )}
 
           {reportStep === 1 && (
-            <div style={{ padding: '20px' }}>
-              <div className="section-label">Choose Photo Source</div>
-              <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="photo-source-btn"
-                >
-                  <ImagePlus size={20} />
-                  <span>Upload from Gallery</span>
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    if (file) handleImageSelected(file);
-                    e.target.value = '';
-                  }}
+            <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div style={{ position: 'relative', flex: 1, background: '#000', overflow: 'hidden' }}>
+                <video
+                  ref={liveCamRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: camStream ? 'block' : 'none' }}
                 />
-              </div>
-
-              <div className="section-label" style={{ marginTop: 16 }}>Or Take a Live Photo</div>
-              <div className="ios-card" style={{ overflow: 'hidden' }}>
-                <div style={{ position: 'relative', background: '#000', aspectRatio: '16/9' }}>
-                  <video ref={liveCamRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', display: camStream ? 'block' : 'none' }} />
-                  {!camStream && (
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                      <Camera size={28} color="rgba(235,235,245,0.3)" />
-                      <span style={{ fontSize: 13, color: 'rgba(235,235,245,0.4)', fontFamily: 'Inter, sans-serif' }}>Opening camera...</span>
-                    </div>
-                  )}
-                  <canvas ref={liveCanvasRef} style={{ display: 'none' }} />
+                {!camStream && (
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                    <div style={{ width: 48, height: 48, borderRadius: '50%', border: '3px solid rgba(10,132,255,0.3)', borderTopColor: '#0A84FF', animation: 'spin 0.8s linear infinite' }} />
+                    <span style={{ fontSize: 14, color: 'rgba(235,235,245,0.5)', fontFamily: 'Inter, sans-serif' }}>Opening camera...</span>
+                  </div>
+                )}
+                <canvas ref={liveCanvasRef} style={{ display: 'none' }} />
+                <div style={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(10px)', borderRadius: 20, padding: '6px 16px', border: '0.5px solid rgba(255,255,255,0.12)' }}>
+                  <span style={{ fontSize: 12, color: 'rgba(235,235,245,0.8)', fontFamily: 'Inter, sans-serif', fontWeight: 500, letterSpacing: 0.3 }}>🔴 LIVE — Point at the hazard</span>
                 </div>
+                <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+                  <div style={{ position: 'absolute', top: '20%', left: '10%', width: 28, height: 28, borderTop: '2px solid rgba(255,255,255,0.5)', borderLeft: '2px solid rgba(255,255,255,0.5)', borderRadius: '3px 0 0 0' }} />
+                  <div style={{ position: 'absolute', top: '20%', right: '10%', width: 28, height: 28, borderTop: '2px solid rgba(255,255,255,0.5)', borderRight: '2px solid rgba(255,255,255,0.5)', borderRadius: '0 3px 0 0' }} />
+                  <div style={{ position: 'absolute', bottom: '20%', left: '10%', width: 28, height: 28, borderBottom: '2px solid rgba(255,255,255,0.5)', borderLeft: '2px solid rgba(255,255,255,0.5)', borderRadius: '0 0 0 3px' }} />
+                  <div style={{ position: 'absolute', bottom: '20%', right: '10%', width: 28, height: 28, borderBottom: '2px solid rgba(255,255,255,0.5)', borderRight: '2px solid rgba(255,255,255,0.5)', borderRadius: '0 0 3px 0' }} />
+                </div>
+              </div>
+              <div style={{ padding: '20px 20px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, background: '#000' }}>
                 <button
                   type="button"
                   onClick={captureFromLiveCamera}
                   disabled={!camStream}
-                  style={{ width: '100%', padding: 14, background: 'transparent', border: 'none', borderTop: '0.5px solid rgba(84,84,88,0.4)', color: camStream ? '#0A84FF' : 'rgba(84,84,88,0.6)', fontSize: 15, fontWeight: 600, fontFamily: 'Inter, sans-serif', cursor: camStream ? 'pointer' : 'not-allowed' }}
+                  style={{
+                    width: 72, height: 72,
+                    borderRadius: '50%',
+                    background: camStream ? '#fff' : 'rgba(84,84,88,0.4)',
+                    border: `4px solid ${camStream ? 'rgba(255,255,255,0.3)' : 'rgba(84,84,88,0.2)'}`,
+                    cursor: camStream ? 'pointer' : 'not-allowed',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: camStream ? '0 0 0 2px rgba(255,255,255,0.15), 0 4px 20px rgba(0,0,0,0.6)' : 'none',
+                    transition: 'transform 0.1s ease',
+                  }}
                 >
-                  📸 Capture Photo
+                  <Camera size={28} color={camStream ? '#1C1C1E' : 'rgba(84,84,88,0.6)'} />
                 </button>
+                <span style={{ fontSize: 12, color: 'rgba(235,235,245,0.4)', fontFamily: 'Inter, sans-serif' }}>Tap to capture live photo</span>
               </div>
             </div>
           )}
 
           {reportStep === 2 && (
-            <div style={{ padding: '20px' }}>
+            <div style={{ padding: '20px', flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
               <div className="section-label">AI Analysis</div>
               <div className="ios-card" style={{ overflow: 'hidden', marginBottom: 16 }}>
                 <div style={{ position: 'relative', aspectRatio: '16/9', background: '#000' }}>
@@ -616,7 +613,7 @@ export default function App() {
                   onClick={() => { setReportStep(1); openLiveCamera(); }}
                   style={{ width: '100%', padding: 12, background: 'transparent', border: 'none', borderTop: '0.5px solid rgba(84,84,88,0.4)', color: 'rgba(235,235,245,0.5)', fontSize: 13, fontWeight: 500, fontFamily: 'Inter, sans-serif', cursor: 'pointer' }}
                 >
-                  ↩ Choose different photo
+                  ↩ Retake photo
                 </button>
               </div>
 
@@ -666,60 +663,45 @@ export default function App() {
                   className="btn-submit"
                   style={{ background: geminiLoading ? 'rgba(84,84,88,0.4)' : '#0A84FF' }}
                 >
-                  Next: Pick Location →
+                  Next: Confirm Location →
                 </button>
               </div>
             </div>
           )}
 
           {reportStep === 3 && (
-            <div style={{ padding: '20px' }}>
+            <div style={{ padding: '20px', flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
               <div className="section-label">Hazard Location</div>
-              <div
-                className="ios-card location-pick-card"
-                onClick={() => setShowLocationPicker(true)}
-                style={{ cursor: 'pointer' }}
-              >
-                <div className="ios-row">
-                  <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(10,132,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <MapPinned size={18} color="#0A84FF" />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 15, color: '#fff', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>
-                      {pickedLocation ? `${pickedLocation.lat.toFixed(5)}, ${pickedLocation.lon.toFixed(5)}` : 'Tap to pick location on map'}
+              <div className="ios-card" style={{ overflow: 'hidden', marginBottom: 16 }}>
+                <div style={{ padding: '16px 16px 0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(48,209,88,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <LocateFixed size={18} color="#30D158" />
                     </div>
-                    {!pickedLocation && userLocation && (
-                      <div style={{ fontSize: 12, color: 'rgba(235,235,245,0.5)', marginTop: 2 }}>
-                        GPS available — or choose manually
+                    <div>
+                      <div style={{ fontSize: 13, color: 'rgba(235,235,245,0.5)', fontFamily: 'Inter, sans-serif', marginBottom: 2 }}>Live GPS Location</div>
+                      <div style={{ fontSize: 15, color: '#fff', fontFamily: 'Inter, sans-serif', fontWeight: 600, letterSpacing: 0.2 }}>
+                        {userLocation ? `${userLocation[0].toFixed(6)}, ${userLocation[1].toFixed(6)}` : 'Acquiring GPS...'}
                       </div>
-                    )}
+                    </div>
+                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: userLocation ? '#30D158' : '#FF9F0A', boxShadow: userLocation ? '0 0 6px #30D158' : '0 0 6px #FF9F0A', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                      <span style={{ fontSize: 11, color: userLocation ? '#30D158' : '#FF9F0A', fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>{userLocation ? 'LOCKED' : 'SEARCHING'}</span>
+                    </div>
                   </div>
-                  <ChevronRight size={18} color="rgba(235,235,245,0.35)" />
+                </div>
+                <div style={{ background: 'rgba(48,209,88,0.06)', borderTop: '0.5px solid rgba(48,209,88,0.2)', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Wifi size={12} color="rgba(48,209,88,0.7)" />
+                  <span style={{ fontSize: 12, color: 'rgba(48,209,88,0.7)', fontFamily: 'Inter, sans-serif' }}>Location is automatically set from your device GPS</span>
                 </div>
               </div>
-
-              {!pickedLocation && userLocation && (
-                <button
-                  type="button"
-                  onClick={() => setPickedLocation({ lat: userLocation[0], lon: userLocation[1] })}
-                  className="gps-quick-fill-btn"
-                >
-                  <LocateFixed size={14} />
-                  Use my GPS location
-                </button>
+              {!userLocation && (
+                <div className="gemini-warning-card" style={{ marginBottom: 16 }}>
+                  <AlertTriangle size={16} color="#FF9F0A" />
+                  <span>Waiting for GPS signal — please enable location services</span>
+                </div>
               )}
-
-              {pickedLocation && (
-                <button
-                  type="button"
-                  onClick={() => setShowLocationPicker(true)}
-                  style={{ marginTop: 8, width: '100%', padding: '10px 0', background: 'transparent', border: 'none', color: 'rgba(10,132,255,0.9)', fontSize: 14, fontWeight: 500, fontFamily: 'Inter, sans-serif', cursor: 'pointer' }}
-                >
-                  ✎ Change Location
-                </button>
-              )}
-
-              <div style={{ marginTop: 20, display: 'flex', gap: 10 }}>
+              <div style={{ marginTop: 8, display: 'flex', gap: 10 }}>
                 <button
                   type="button"
                   onClick={() => setReportStep(2)}
@@ -730,22 +712,14 @@ export default function App() {
                 <button
                   type="button"
                   onClick={submitPhotoReport}
-                  disabled={isUploading || (!pickedLocation && !userLocation)}
+                  disabled={isUploading || !userLocation}
                   className="btn-submit"
-                  style={{ flex: 2, opacity: isUploading || (!pickedLocation && !userLocation) ? 0.4 : 1 }}
+                  style={{ flex: 2, opacity: isUploading || !userLocation ? 0.4 : 1 }}
                 >
                   {isUploading ? 'Submitting...' : <><Upload size={16} /> Submit Report</>}
                 </button>
               </div>
             </div>
-          )}
-
-          {showLocationPicker && (
-            <LocationPickerModal
-              initialLocation={pickedLocation ? [pickedLocation.lat, pickedLocation.lon] : userLocation}
-              onConfirm={(loc) => { setPickedLocation(loc); setShowLocationPicker(false); }}
-              onClose={() => setShowLocationPicker(false)}
-            />
           )}
         </div>
       )}
