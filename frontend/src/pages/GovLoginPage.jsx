@@ -1,0 +1,172 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Building2, Eye, EyeOff, ChevronLeft, AlertCircle } from 'lucide-react';
+import { supabase } from '../supabaseClient';
+
+export default function GovLoginPage() {
+  const navigate = useNavigate();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (sessionStorage.getItem('streetiq_gov')) {
+      navigate('/gov/dashboard', { replace: true });
+    }
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+    };
+  }, [navigate]);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    if (!username.trim() || !password.trim()) {
+      setError('Please enter both username and password.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const { data, error: rpcErr } = await supabase.rpc('gov_login', {
+        p_username: username.trim().toLowerCase(),
+        p_password: password,
+      });
+      if (rpcErr) throw rpcErr;
+      if (data) {
+        sessionStorage.setItem('streetiq_gov', JSON.stringify(data));
+        navigate('/gov/dashboard', { replace: true });
+      } else {
+        setError('Invalid credentials or account inactive.');
+      }
+    } catch {
+      setError('Authentication failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight: '100dvh', background: '#000',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      fontFamily: "'Inter', -apple-system, sans-serif",
+      padding: '24px', position: 'relative',
+    }}>
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+        background: 'radial-gradient(ellipse at 50% 0%, rgba(48,209,88,0.1) 0%, transparent 65%)',
+        pointerEvents: 'none',
+      }} />
+      <button
+        onClick={() => navigate('/about')}
+        style={{
+          position: 'absolute', top: 'calc(env(safe-area-inset-top,0px) + 20px)', left: 20,
+          background: 'none', border: 'none', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 4,
+          color: 'rgba(255,255,255,0.4)', fontSize: 15, fontFamily: "'Inter', sans-serif",
+        }}
+      >
+        <ChevronLeft size={18} />
+        Back
+      </button>
+      <div style={{ width: '100%', maxWidth: 380 }}>
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: 16,
+            background: 'rgba(48,209,88,0.12)',
+            border: '1px solid rgba(48,209,88,0.25)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 20px',
+          }}>
+            <Building2 size={24} color="#30D158" />
+          </div>
+          <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: -0.8, color: '#fff', marginBottom: 6 }}>Government Portal</div>
+          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>StreetIQ Official Access</div>
+        </div>
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>
+              Username
+            </label>
+            <input
+              id="gov-username"
+              type="text"
+              value={username}
+              onChange={e => { setUsername(e.target.value); setError(''); }}
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              style={{
+                width: '100%', padding: '14px 16px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 12, color: '#fff', fontSize: 15,
+                fontFamily: "'Inter', sans-serif", outline: 'none',
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>
+              Password
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                id="gov-password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={e => { setPassword(e.target.value); setError(''); }}
+                autoComplete="current-password"
+                style={{
+                  width: '100%', padding: '14px 48px 14px 16px',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 12, color: '#fff', fontSize: 15,
+                  fontFamily: "'Inter', sans-serif", outline: 'none',
+                }}
+              />
+              <button type="button" onClick={() => setShowPassword(v => !v)} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', padding: 0 }}>
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+          {error && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderRadius: 10, background: 'rgba(255,69,58,0.1)', border: '1px solid rgba(255,69,58,0.25)' }}>
+              <AlertCircle size={15} color="#FF453A" />
+              <span style={{ fontSize: 13, color: '#FF453A', fontFamily: "'Inter', sans-serif" }}>{error}</span>
+            </div>
+          )}
+          <button
+            id="gov-login-submit"
+            type="submit"
+            disabled={loading}
+            style={{
+              marginTop: 8, width: '100%', padding: '15px',
+              background: loading ? 'rgba(48,209,88,0.3)' : '#30D158',
+              border: 'none', borderRadius: 12, color: '#000',
+              fontSize: 15, fontWeight: 700, fontFamily: "'Inter', sans-serif",
+              cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+          >
+            {loading ? (
+              <>
+                <div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.2)', borderTopColor: '#000', animation: 'spin 0.7s linear infinite' }} />
+                Authenticating...
+              </>
+            ) : 'Sign In'}
+          </button>
+        </form>
+        <div style={{ textAlign: 'center', marginTop: 28, fontSize: 12, color: 'rgba(255,255,255,0.12)' }}>
+          Government-issued credentials only
+        </div>
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}

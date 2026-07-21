@@ -1,8 +1,4 @@
--- ============================================================
--- StreetIQ Admin & Gov Access Migration
--- Run this in Supabase SQL Editor
--- Default admin: username=streetiq_admin  password=StreetIQ@2026
--- ============================================================
+
 
 -- pgcrypto for password hashing
 create extension if not exists pgcrypto;

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ArrowUpRight, Cpu, ShieldCheck, Zap, Wifi, Layers, Video, Lock } from 'lucide-react';
+import { ChevronLeft, ArrowUpRight, Cpu, ShieldCheck, Zap, Wifi, Layers, Video, Lock, Building2 } from 'lucide-react';
 
 export default function AboutPage() {
   const navigate = useNavigate();
@@ -167,6 +167,24 @@ export default function AboutPage() {
             View on GitHub
             <ArrowUpRight size={18} />
           </a>
+          <button
+            onClick={() => navigate('/gov')}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '18px 22px', borderRadius: 14,
+              background: 'rgba(48,209,88,0.07)',
+              border: '1px solid rgba(48,209,88,0.18)',
+              color: 'rgba(48,209,88,0.7)', fontSize: 15, fontWeight: 600,
+              fontFamily: "'Inter', sans-serif",
+              cursor: 'pointer', width: '100%',
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Building2 size={16} />
+              Government Portal
+            </span>
+            <ChevronLeft size={15} style={{ transform: 'rotate(180deg)' }} />
+          </button>
           <button
             onClick={() => navigate('/admin')}
             style={{
