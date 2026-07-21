@@ -53,6 +53,19 @@ function parseAreaPolygon(geojson) {
   } catch { return null; }
 }
 
+function pointInPolygon(lat, lon, polygon) {
+  if (!polygon || polygon.length < 3) return true;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [iy, ix] = polygon[i];
+    const [jy, jx] = polygon[j];
+    if (((iy > lat) !== (jy > lat)) && (lon < ((jx - ix) * (lat - iy)) / (jy - iy) + ix)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
 function GovZoomCtrl() {
   const map = useMap();
   return (
@@ -190,7 +203,16 @@ export default function GovDashboard() {
     if (!govInfo?.id) return;
     setLoading(true);
     const { data, error } = await supabase.rpc('gov_get_hazards', { p_gov_id: govInfo.id });
-    if (!error && data) setHazards(data.filter(h => allowedTypes.includes(h.type)));
+    if (error) {
+      console.error('[gov_get_hazards] RPC error:', JSON.stringify(error));
+    }
+    if (!error && data) {
+      const byType = data.filter(h => allowedTypes.includes(h.type));
+      const byArea = areaPolygon
+        ? byType.filter(h => pointInPolygon(Number(h.lat), Number(h.lon), areaPolygon))
+        : byType;
+      setHazards(byArea);
+    }
     setLoading(false);
   }, [govInfo?.id]);
 
