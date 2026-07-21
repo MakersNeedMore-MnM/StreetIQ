@@ -4,8 +4,8 @@ import { MapContainer, TileLayer, CircleMarker, Tooltip, Polyline, Polygon, useM
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import {
-  LogOut, Building2, Map, AlertTriangle, Download, Ruler,
-  RefreshCw, Lock, CheckCircle, Trash2, ChevronDown, X,
+  LogOut, Map, AlertTriangle, Download, Ruler,
+  RefreshCw, Lock, Trash2, X,
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
@@ -278,16 +278,16 @@ export default function GovDashboard() {
         borderBottom: '1px solid rgba(255,255,255,0.07)',
         display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
       }}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(48,209,88,0.12)', border: '1px solid rgba(48,209,88,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <Building2 size={16} color="#30D158" />
+        <div style={{ width: 36, height: 36, borderRadius: 9, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+          <img src="/logo.png" alt="StreetIQ" style={{ width: 22, height: 22, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.7 }} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{govInfo.dept_name}</div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <span>{govInfo.map_access?.replace('_', ' ')}</span>
             {govInfo.area_label && <span>· {govInfo.area_label}</span>}
-            {govInfo.can_edit && <span style={{ color: '#30D158' }}>· Edit</span>}
-            {govInfo.can_remove && <span style={{ color: '#FF9F0A' }}>· Remove</span>}
+            {govInfo.can_edit && <span style={{ color: 'rgba(255,255,255,0.55)' }}>· Edit</span>}
+            {govInfo.can_remove && <span style={{ color: 'rgba(255,255,255,0.55)' }}>· Remove</span>}
           </div>
         </div>
         <button onClick={fetchHazards} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', padding: 6 }}>
@@ -295,7 +295,7 @@ export default function GovDashboard() {
         </button>
         <button
           onClick={() => { sessionStorage.removeItem('streetiq_gov'); navigate('/gov', { replace: true }); }}
-          style={{ background: 'rgba(255,69,58,0.1)', border: '1px solid rgba(255,69,58,0.22)', borderRadius: 8, cursor: 'pointer', color: '#FF453A', padding: '6px 10px', fontSize: 12, fontWeight: 600, fontFamily: "'Inter', sans-serif", display: 'flex', alignItems: 'center', gap: 5 }}
+          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, cursor: 'pointer', color: 'rgba(255,255,255,0.5)', padding: '6px 10px', fontSize: 12, fontWeight: 600, fontFamily: "'Inter', sans-serif", display: 'flex', alignItems: 'center', gap: 5 }}
         >
           <LogOut size={13} />
           Out
@@ -308,18 +308,18 @@ export default function GovDashboard() {
             onClick={() => setActiveTab(tab.id)}
             style={{
               flex: 1, padding: '11px 0',
-              background: activeTab === tab.id ? 'rgba(48,209,88,0.08)' : 'transparent',
+              background: 'transparent',
               border: 'none',
-              borderBottom: activeTab === tab.id ? '2px solid #30D158' : '2px solid transparent',
-              cursor: 'pointer', color: activeTab === tab.id ? '#30D158' : 'rgba(255,255,255,0.4)',
-              fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 12,
+              borderBottom: activeTab === tab.id ? '2px solid #fff' : '2px solid transparent',
+              cursor: 'pointer', color: activeTab === tab.id ? '#fff' : 'rgba(255,255,255,0.35)',
+              fontFamily: "'Inter', sans-serif", fontWeight: activeTab === tab.id ? 700 : 500, fontSize: 12,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               transition: 'all 0.15s',
             }}
           >
             {tab.icon}{tab.label}
             {tab.id === 'hazards' && hazards.length > 0 && (
-              <span style={{ minWidth: 16, height: 16, borderRadius: 8, background: 'rgba(48,209,88,0.2)', color: '#30D158', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+              <span style={{ minWidth: 16, height: 16, borderRadius: 8, background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
                 {hazards.length}
               </span>
             )}
@@ -338,9 +338,9 @@ export default function GovDashboard() {
                 style={{
                   padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
                   fontFamily: "'Inter', sans-serif", cursor: 'pointer',
-                  background: rulerMode ? 'rgba(255,214,10,0.2)' : 'rgba(28,28,30,0.92)',
-                  border: rulerMode ? '1px solid rgba(255,214,10,0.5)' : '1px solid rgba(255,255,255,0.15)',
-                  color: rulerMode ? '#FFD60A' : 'rgba(255,255,255,0.7)',
+                  background: rulerMode ? 'rgba(255,255,255,0.2)' : 'rgba(28,28,30,0.92)',
+                  border: rulerMode ? '1px solid rgba(255,255,255,0.5)' : '1px solid rgba(255,255,255,0.15)',
+                  color: rulerMode ? '#fff' : 'rgba(255,255,255,0.7)',
                   display: 'flex', alignItems: 'center', gap: 6,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
                 }}
@@ -360,15 +360,15 @@ export default function GovDashboard() {
             {rulerPoints.length > 1 && (
               <div style={{
                 position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
-                zIndex: 1000, background: 'rgba(28,28,30,0.96)', border: '1px solid rgba(255,214,10,0.3)',
+                zIndex: 1000, background: 'rgba(28,28,30,0.96)', border: '1px solid rgba(255,255,255,0.3)',
                 borderRadius: 12, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12,
                 boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
               }}>
-                <Ruler size={14} color="#FFD60A" />
-                <span style={{ fontSize: 15, fontWeight: 700, color: '#FFD60A' }}>{fmtDistance(rulerTotal, rulerUnit)}</span>
+                <Ruler size={14} color="#fff" />
+                <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{fmtDistance(rulerTotal, rulerUnit)}</span>
                 <div style={{ display: 'flex', gap: 4 }}>
                   {['m', 'km', 'mi'].map(u => (
-                    <button key={u} onClick={() => setRulerUnit(u)} style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, fontFamily: "'Inter', sans-serif", cursor: 'pointer', background: rulerUnit === u ? '#FFD60A' : 'rgba(255,255,255,0.08)', border: 'none', color: rulerUnit === u ? '#000' : 'rgba(255,255,255,0.5)' }}>{u}</button>
+                    <button key={u} onClick={() => setRulerUnit(u)} style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, fontFamily: "'Inter', sans-serif", cursor: 'pointer', background: rulerUnit === u ? '#fff' : 'rgba(255,255,255,0.08)', border: 'none', color: rulerUnit === u ? '#000' : 'rgba(255,255,255,0.5)' }}>{u}</button>
                   ))}
                 </div>
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>{rulerPoints.length} pts</span>
@@ -376,7 +376,7 @@ export default function GovDashboard() {
             )}
             {loading ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 14 }}>
-                <div style={{ width: 32, height: 32, borderRadius: '50%', border: '2.5px solid rgba(48,209,88,0.3)', borderTopColor: '#30D158', animation: 'spin 0.7s linear infinite' }} />
+                <div style={{ width: 32, height: 32, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,0.12)', borderTopColor: '#fff', animation: 'spin 0.7s linear infinite' }} />
                 <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.35)' }}>Loading hazards...</span>
               </div>
             ) : (
@@ -403,7 +403,7 @@ export default function GovDashboard() {
                     />
                     <Polygon
                       positions={areaPolygon}
-                      pathOptions={{ color: '#30D158', weight: 2, fill: false, dashArray: '6 4' }}
+                      pathOptions={{ color: 'rgba(255,255,255,0.3)', weight: 1.5, fill: false, dashArray: '5 5' }}
                     />
                   </>
                 )}
@@ -433,7 +433,7 @@ export default function GovDashboard() {
                 {rulerPoints.length > 1 && (
                   <Polyline
                     positions={rulerPoints}
-                    pathOptions={{ color: '#FFD60A', weight: 2.5, dashArray: '5 4', opacity: 0.9 }}
+                    pathOptions={{ color: '#fff', weight: 2.5, dashArray: '5 4', opacity: 0.9 }}
                   />
                 )}
                 {rulerPoints.map((p, i) => (
@@ -441,7 +441,7 @@ export default function GovDashboard() {
                     key={`r${i}`}
                     center={p}
                     radius={i === 0 ? 6 : 4}
-                    pathOptions={{ color: '#FFD60A', fillColor: '#FFD60A', fillOpacity: 1, weight: 2 }}
+                    pathOptions={{ color: '#fff', fillColor: '#fff', fillOpacity: 1, weight: 2 }}
                   >
                     {i > 0 && (
                       <Tooltip permanent direction="top" offset={[0, -8]} opacity={0.9}>
@@ -477,14 +477,14 @@ export default function GovDashboard() {
               </div>
             </div>
             {!govInfo.can_edit && !govInfo.can_remove && (
-              <div style={{ margin: '12px 16px', padding: '10px 14px', borderRadius: 10, background: 'rgba(255,159,10,0.08)', border: '1px solid rgba(255,159,10,0.2)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Lock size={14} color="#FF9F0A" />
-                <span style={{ fontSize: 12, color: '#FF9F0A' }}>View only — no edit or remove permissions</span>
+              <div style={{ margin: '12px 16px', padding: '10px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Lock size={14} color="rgba(255,255,255,0.35)" />
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>View only — no edit or remove permissions</span>
               </div>
             )}
             {loading ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 48, gap: 12 }}>
-                <div style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid rgba(48,209,88,0.3)', borderTopColor: '#30D158', animation: 'spin 0.7s linear infinite' }} />
+                <div style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.12)', borderTopColor: '#fff', animation: 'spin 0.7s linear infinite' }} />
                 <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>Loading...</span>
               </div>
             ) : filteredHazards.length === 0 ? (
@@ -566,7 +566,7 @@ export default function GovDashboard() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {ALL_STATUSES.map(s => (
                   <button key={s} onClick={() => toggleFilter(exportStatuses, setExportStatuses, s)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 10, background: exportStatuses.includes(s) ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)', border: exportStatuses.includes(s) ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.06)', cursor: 'pointer' }}>
-                    <div style={{ width: 18, height: 18, borderRadius: 5, background: exportStatuses.includes(s) ? '#30D158' : 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 10, color: '#000' }}>
+                    <div style={{ width: 18, height: 18, borderRadius: 5, background: exportStatuses.includes(s) ? '#fff' : 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 10, color: '#000' }}>
                       {exportStatuses.includes(s) ? '✓' : ''}
                     </div>
                     <span style={{ fontSize: 13, fontFamily: "'Inter', sans-serif", color: exportStatuses.includes(s) ? '#fff' : 'rgba(255,255,255,0.4)', fontWeight: 600, textTransform: 'capitalize' }}>{s.replace('_', ' ')}</span>
@@ -575,8 +575,8 @@ export default function GovDashboard() {
                 ))}
               </div>
             </div>
-            <div style={{ padding: '14px 16px', borderRadius: 12, background: 'rgba(48,209,88,0.07)', border: '1px solid rgba(48,209,88,0.18)', marginBottom: 16 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#30D158', marginBottom: 2 }}>{exportCount} records selected</div>
+            <div style={{ padding: '14px 16px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 2 }}>{exportCount} records selected</div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>
                 Fields: ID · Type · Severity · Status · Source · Latitude · Longitude · Confirmations · Timestamp
               </div>
@@ -585,7 +585,7 @@ export default function GovDashboard() {
               <button
                 onClick={doExportCSV}
                 disabled={exportCount === 0}
-                style={{ padding: '15px', borderRadius: 12, background: exportCount === 0 ? 'rgba(255,255,255,0.04)' : 'rgba(48,209,88,0.15)', border: `1px solid ${exportCount === 0 ? 'rgba(255,255,255,0.08)' : 'rgba(48,209,88,0.35)'}`, color: exportCount === 0 ? 'rgba(255,255,255,0.2)' : '#30D158', fontWeight: 700, fontSize: 15, fontFamily: "'Inter', sans-serif", cursor: exportCount === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                style={{ padding: '15px', borderRadius: 12, background: exportCount === 0 ? 'rgba(255,255,255,0.04)' : '#fff', border: `1px solid ${exportCount === 0 ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.15)'}`, color: exportCount === 0 ? 'rgba(255,255,255,0.2)' : '#000', fontWeight: 700, fontSize: 15, fontFamily: "'Inter', sans-serif", cursor: exportCount === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
               >
                 <Download size={16} /> Export as CSV
               </button>
@@ -604,8 +604,8 @@ export default function GovDashboard() {
         <div style={{
           position: 'fixed', bottom: 'calc(env(safe-area-inset-bottom,0px) + 24px)',
           left: '50%', transform: 'translateX(-50%)',
-          background: toast.type === 'error' ? 'rgba(255,69,58,0.95)' : 'rgba(28,28,30,0.97)',
-          border: toast.type === 'error' ? '1px solid rgba(255,69,58,0.4)' : '1px solid rgba(48,209,88,0.35)',
+          background: toast.type === 'error' ? 'rgba(28,28,30,0.98)' : 'rgba(28,28,30,0.98)',
+          border: '1px solid rgba(255,255,255,0.12)',
           color: '#fff', padding: '11px 18px', borderRadius: 12, fontSize: 13, fontWeight: 500,
           boxShadow: '0 8px 32px rgba(0,0,0,0.5)', zIndex: 9999, whiteSpace: 'nowrap',
           animation: 'fadeIn 0.2s ease',

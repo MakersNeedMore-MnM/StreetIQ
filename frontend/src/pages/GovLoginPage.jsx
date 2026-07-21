@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Eye, EyeOff, ChevronLeft, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, ChevronLeft, AlertCircle } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 export default function GovLoginPage() {
@@ -52,46 +52,68 @@ export default function GovLoginPage() {
 
   return (
     <div style={{
-      minHeight: '100dvh', background: '#000',
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
+      minHeight: '100dvh',
+      background: '#0a0a0a',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
       fontFamily: "'Inter', -apple-system, sans-serif",
-      padding: '24px', position: 'relative',
+      padding: '24px',
+      position: 'relative',
     }}>
       <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-        background: 'radial-gradient(ellipse at 50% 0%, rgba(48,209,88,0.1) 0%, transparent 65%)',
+        position: 'absolute', inset: 0,
+        backgroundImage: 'radial-gradient(circle at 50% 0%, rgba(255,255,255,0.03) 0%, transparent 60%)',
         pointerEvents: 'none',
       }} />
       <button
         onClick={() => navigate('/about')}
         style={{
-          position: 'absolute', top: 'calc(env(safe-area-inset-top,0px) + 20px)', left: 20,
-          background: 'none', border: 'none', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 4,
-          color: 'rgba(255,255,255,0.4)', fontSize: 15, fontFamily: "'Inter', sans-serif",
+          position: 'absolute',
+          top: 'calc(env(safe-area-inset-top,0px) + 20px)',
+          left: 20,
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          color: 'rgba(255,255,255,0.3)',
+          fontSize: 14,
+          fontFamily: "'Inter', sans-serif",
+          padding: 0,
         }}
       >
-        <ChevronLeft size={18} />
+        <ChevronLeft size={16} />
         Back
       </button>
-      <div style={{ width: '100%', maxWidth: 380 }}>
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+      <div style={{ width: '100%', maxWidth: 360 }}>
+        <div style={{ textAlign: 'center', marginBottom: 44 }}>
           <div style={{
-            width: 56, height: 56, borderRadius: 16,
-            background: 'rgba(48,209,88,0.12)',
-            border: '1px solid rgba(48,209,88,0.25)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 64,
+            height: 64,
+            borderRadius: 16,
+            background: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             margin: '0 auto 20px',
+            boxShadow: '0 0 0 1px rgba(255,255,255,0.08)',
           }}>
-            <Building2 size={24} color="#30D158" />
+            <img src="/logo.png" alt="StreetIQ" style={{ width: 40, height: 40, objectFit: 'contain' }} />
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: -0.8, color: '#fff', marginBottom: 6 }}>Government Portal</div>
-          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>StreetIQ Official Access</div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', marginBottom: 10 }}>
+            Government Portal
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#fff', letterSpacing: -0.5 }}>
+            Official Access
+          </div>
+          <div style={{ width: 32, height: 1, background: 'rgba(255,255,255,0.12)', margin: '16px auto 0' }} />
         </div>
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.35)', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 7 }}>
               Username
             </label>
             <input
@@ -103,16 +125,24 @@ export default function GovLoginPage() {
               autoCapitalize="none"
               spellCheck={false}
               style={{
-                width: '100%', padding: '14px 16px',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 12, color: '#fff', fontSize: 15,
-                fontFamily: "'Inter', sans-serif", outline: 'none',
+                width: '100%',
+                padding: '13px 14px',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 10,
+                color: '#fff',
+                fontSize: 15,
+                fontFamily: "'Inter', sans-serif",
+                outline: 'none',
+                boxSizing: 'border-box',
+                transition: 'border-color 0.15s',
               }}
+              onFocus={e => e.target.style.borderColor = 'rgba(255,255,255,0.35)'}
+              onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.12)'}
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.35)', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 7 }}>
               Password
             </label>
             <div style={{ position: 'relative' }}>
@@ -123,22 +153,34 @@ export default function GovLoginPage() {
                 onChange={e => { setPassword(e.target.value); setError(''); }}
                 autoComplete="current-password"
                 style={{
-                  width: '100%', padding: '14px 48px 14px 16px',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 12, color: '#fff', fontSize: 15,
-                  fontFamily: "'Inter', sans-serif", outline: 'none',
+                  width: '100%',
+                  padding: '13px 46px 13px 14px',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: 10,
+                  color: '#fff',
+                  fontSize: 15,
+                  fontFamily: "'Inter', sans-serif",
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  transition: 'border-color 0.15s',
                 }}
+                onFocus={e => e.target.style.borderColor = 'rgba(255,255,255,0.35)'}
+                onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.12)'}
               />
-              <button type="button" onClick={() => setShowPassword(v => !v)} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', padding: 0 }}>
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                style={{ position: 'absolute', right: 13, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.25)', padding: 0 }}
+              >
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
             </div>
           </div>
           {error && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderRadius: 10, background: 'rgba(255,69,58,0.1)', border: '1px solid rgba(255,69,58,0.25)' }}>
-              <AlertCircle size={15} color="#FF453A" />
-              <span style={{ fontSize: 13, color: '#FF453A', fontFamily: "'Inter', sans-serif" }}>{error}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 13px', borderRadius: 9, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)' }}>
+              <AlertCircle size={14} color="rgba(255,255,255,0.5)" />
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontFamily: "'Inter', sans-serif" }}>{error}</span>
             </div>
           )}
           <button
@@ -146,24 +188,35 @@ export default function GovLoginPage() {
             type="submit"
             disabled={loading}
             style={{
-              marginTop: 8, width: '100%', padding: '15px',
-              background: loading ? 'rgba(48,209,88,0.3)' : '#30D158',
-              border: 'none', borderRadius: 12, color: '#000',
-              fontSize: 15, fontWeight: 700, fontFamily: "'Inter', sans-serif",
+              marginTop: 6,
+              width: '100%',
+              padding: '14px',
+              background: loading ? 'rgba(255,255,255,0.7)' : '#fff',
+              border: 'none',
+              borderRadius: 10,
+              color: '#000',
+              fontSize: 14,
+              fontWeight: 700,
+              letterSpacing: 0.5,
+              fontFamily: "'Inter', sans-serif",
               cursor: loading ? 'not-allowed' : 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
             }}
           >
             {loading ? (
               <>
-                <div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.2)', borderTopColor: '#000', animation: 'spin 0.7s linear infinite' }} />
-                Authenticating...
+                <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.15)', borderTopColor: '#000', animation: 'spin 0.7s linear infinite' }} />
+                Authenticating
               </>
             ) : 'Sign In'}
           </button>
         </form>
-        <div style={{ textAlign: 'center', marginTop: 28, fontSize: 12, color: 'rgba(255,255,255,0.12)' }}>
-          Government-issued credentials only
+        <div style={{ textAlign: 'center', marginTop: 32, fontSize: 11, color: 'rgba(255,255,255,0.15)', lineHeight: 1.7 }}>
+          Secure access for authorised government officials only<br />
+          Credentials issued by the StreetIQ administrator
         </div>
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

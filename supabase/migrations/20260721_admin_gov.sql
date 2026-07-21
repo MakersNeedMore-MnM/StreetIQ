@@ -210,7 +210,7 @@ declare
   v_bounds geography;
 begin
   if p_area_geojson is not null then
-    v_bounds := st_geomfromgeojson(p_area_geojson)::geography;
+    v_bounds := ST_SetSRID(ST_GeomFromGeoJSON(p_area_geojson), 4326)::geography;
   end if;
   insert into public.gov_accounts (
     dept_name, username, password_hash,
@@ -242,7 +242,7 @@ declare
   v_bounds geography;
 begin
   if p_area_geojson is not null then
-    v_bounds := st_geomfromgeojson(p_area_geojson)::geography;
+    v_bounds := ST_SetSRID(ST_GeomFromGeoJSON(p_area_geojson), 4326)::geography;
   end if;
   update public.gov_accounts set
     dept_name = p_dept_name,

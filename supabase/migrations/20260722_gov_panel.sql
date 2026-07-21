@@ -63,7 +63,10 @@ begin
   where h.status != 'rejected'
     and (
       v_area is null
-      or ST_Covers(v_area::geometry, h.location::geometry)
+      or ST_Covers(
+        ST_SetSRID(v_area::geometry, 4326),
+        ST_SetSRID(h.location::geometry, 4326)
+      )
     )
   order by h.created_at desc;
 end;
