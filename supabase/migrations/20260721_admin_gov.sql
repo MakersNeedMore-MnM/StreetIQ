@@ -31,7 +31,7 @@ create policy "Deny all direct access to admin_config"
 
 -- Insert default admin credentials (change password after setup)
 insert into public.admin_config (id, username, password_hash)
-values (1, 'streetiq_admin', crypt('StreetIQ@2026', gen_salt('bf')))
+values (1, '[EMAIL_ADDRESS]', crypt('xxxxxxx', gen_salt('bf')))
 on conflict (id) do nothing;
 
 -- Gov accounts table
