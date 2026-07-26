@@ -351,15 +351,13 @@ function HazardEditDrawer({ hazard, onClose, onSave, onApprove, onReject }) {
         <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>Type</label>
-            <select
+            <input
+              type="text"
               value={type}
-              onChange={e => setType(e.target.value)}
+              onChange={e => setType(e.target.value.toLowerCase())}
+              placeholder="e.g. fallen tree, pothole"
               style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, color: '#fff', fontSize: 14, fontFamily: "'Inter', sans-serif" }}
-            >
-              {['pothole', 'crack', 'waterlogging', 'debris'].map(t => (
-                <option key={t} value={t} style={{ background: '#1C1C1E' }}>{HAZARD_EMOJI[t]} {t}</option>
-              ))}
-            </select>
+            />
           </div>
           <div>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>

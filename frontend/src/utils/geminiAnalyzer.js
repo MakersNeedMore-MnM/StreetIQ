@@ -20,9 +20,12 @@ async function resizeImageBlob(blob) {
   });
 }
 
-export async function analyzeImageWithGemini(imageBlob) {
+export async function analyzeImageWithGemini(imageBlob, intent = null) {
   const resized = await resizeImageBlob(imageBlob);
   const formData = new FormData();
+  if (intent) {
+    formData.append('intent', intent);
+  }
   formData.append('image', resized, 'hazard.jpg');
   const res = await fetch(`${BACKEND_URL}/api/gemini-analyze`, {
     method: 'POST',

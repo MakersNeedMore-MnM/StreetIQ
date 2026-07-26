@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { Play, Square, X, Film, Activity } from 'lucide-react';
+import { Play, Square, X, Film, Activity, Cpu, Zap } from 'lucide-react';
 import * as tf from '@tensorflow/tfjs';
 import { parseYoloOutputAll } from '../utils/tfjsParser';
 
@@ -44,14 +44,21 @@ function drawDetections(ctx, detections, canvasW, canvasH) {
 export default function VideoAnalysis({ model, onClose }) {
   const [phase, setPhase] = useState('ready');
   const [summary, setSummary] = useState(null);
-  
+  const [fps, setFps] = useState(0);
+  const [backendInfo, setBackendInfo] = useState('');
   const videoRef = useRef(null);
   const displayCanvasRef = useRef(null);
   const overlayRef = useRef(null);
-  
   const stoppedRef = useRef(false);
   const countsByTypeRef = useRef({});
   const drawFrameIdRef = useRef(null);
+  const fpsCounterRef = useRef({ frames: 0, lastTime: 0 });
+
+  useEffect(() => {
+    const b = tf.getBackend();
+    const isGpu = b === 'webgpu' || b === 'webgl';
+    setBackendInfo(isGpu ? `GPU (${b})` : `CPU (${b})`);
+  }, []);
 
   const cleanup = useCallback(() => {
     stoppedRef.current = true;
@@ -67,10 +74,10 @@ export default function VideoAnalysis({ model, onClose }) {
     stoppedRef.current = true;
     const counts = countsByTypeRef.current;
     const total = Object.values(counts).reduce((a, b) => a + b, 0);
-    setSummary({ 
-      countsByType: counts, 
-      total, 
-      duration: Math.round(videoRef.current?.duration || 0) 
+    setSummary({
+      countsByType: counts,
+      total,
+      duration: Math.round(videoRef.current?.duration || 0)
     });
   }, []);
 
@@ -88,35 +95,33 @@ export default function VideoAnalysis({ model, onClose }) {
     setSummary(null);
     countsByTypeRef.current = {};
     stoppedRef.current = false;
-    
+    fpsCounterRef.current = { frames: 0, lastTime: performance.now() };
     videoRef.current.currentTime = 0;
     videoRef.current.play().catch(console.error);
-
-    // Render loop for syncing video to canvas
     const drawLoop = () => {
       if (stoppedRef.current) return;
       if (videoRef.current && displayCanvasRef.current && overlayRef.current) {
         const vw = videoRef.current.videoWidth || 640;
         const vh = videoRef.current.videoHeight || 360;
-        
         if (displayCanvasRef.current.width !== vw || displayCanvasRef.current.height !== vh) {
           displayCanvasRef.current.width = vw;
           displayCanvasRef.current.height = vh;
           overlayRef.current.width = vw;
           overlayRef.current.height = vh;
         }
-        
         const ctx = displayCanvasRef.current.getContext('2d');
         ctx.drawImage(videoRef.current, 0, 0, vw, vh);
       }
       drawFrameIdRef.current = requestAnimationFrame(drawLoop);
     };
-
-    // Inference loop
+    let inferBusy = false;
     const inferenceLoop = async () => {
-      if (stoppedRef.current || videoRef.current.paused || videoRef.current.ended) {
+      if (stoppedRef.current || videoRef.current.paused || videoRef.current.ended) return;
+      if (inferBusy) {
+        requestAnimationFrame(inferenceLoop);
         return;
       }
+      inferBusy = true;
       try {
         const predictions = tf.tidy(() => {
           return model.execute(
@@ -124,30 +129,35 @@ export default function VideoAnalysis({ model, onClose }) {
               .resizeBilinear([640, 640])
               .expandDims(0)
               .toFloat()
+              .div(255.0)
           );
         });
-        const detections = await parseYoloOutputAll(predictions, 0.20);
+        const detections = await parseYoloOutputAll(predictions, 0.10);
         if (Array.isArray(predictions)) predictions.forEach(t => t.dispose());
         else predictions.dispose();
-
         if (overlayRef.current) {
           const octx = overlayRef.current.getContext('2d');
           octx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
           drawDetections(octx, detections, overlayRef.current.width, overlayRef.current.height);
         }
-
         detections.forEach(d => {
           countsByTypeRef.current[d.className] = (countsByTypeRef.current[d.className] || 0) + 1;
         });
+        fpsCounterRef.current.frames++;
+        const now = performance.now();
+        const elapsed = now - fpsCounterRef.current.lastTime;
+        if (elapsed >= 1000) {
+          setFps(Math.round((fpsCounterRef.current.frames / elapsed) * 1000));
+          fpsCounterRef.current = { frames: 0, lastTime: now };
+        }
       } catch (e) {
         console.error('Frame inference error:', e);
       }
-      
+      inferBusy = false;
       if (!stoppedRef.current && !videoRef.current.paused && !videoRef.current.ended) {
         requestAnimationFrame(inferenceLoop);
       }
     };
-
     drawFrameIdRef.current = requestAnimationFrame(drawLoop);
     inferenceLoop();
   };
@@ -170,33 +180,32 @@ export default function VideoAnalysis({ model, onClose }) {
     }
     setPhase('ready');
     setSummary(null);
+    setFps(0);
     countsByTypeRef.current = {};
   };
 
   const hazardEmoji = { crack: '⚡', pothole: '🕳️', waterlogging: '💧', debris: '🪨', unknown: '⚠️' };
-  const BUTTON_BAR_H = 70;
 
-  // Render the onClose differently: we can pass an onClose prop from App.jsx so we don't have to redefine reset
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 'calc(var(--bottom-bar-height) + var(--safe-bottom, 0px))', background: '#000', zIndex: 3000, display: 'flex', flexDirection: 'column' }}>
-      
-      {/* Header */}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'calc(env(safe-area-inset-top, 0px) + 16px) 20px 12px', background: 'rgba(18,18,18,0.95)', borderBottom: '0.5px solid rgba(84,84,88,0.4)' }}>
         <div>
           <div style={{ fontSize: 17, fontWeight: 700, color: '#fff', fontFamily: 'Inter, sans-serif' }}>How We Work</div>
-          <div style={{ fontSize: 12, color: 'rgba(235,235,245,0.45)', fontFamily: 'Inter, sans-serif', marginTop: 2 }}>
-            Interactive AI Demo · Processed locally
+          <div style={{ fontSize: 12, color: 'rgba(235,235,245,0.45)', fontFamily: 'Inter, sans-serif', marginTop: 2, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>Interactive AI Demo · Processed locally</span>
+            {backendInfo && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: backendInfo.startsWith('GPU') ? 'rgba(48,209,88,0.15)' : 'rgba(255,159,10,0.15)', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, color: backendInfo.startsWith('GPU') ? '#30D158' : '#FF9F0A' }}>
+                {backendInfo.startsWith('GPU') ? <Zap size={9} /> : <Cpu size={9} />}
+                {backendInfo}
+              </span>
+            )}
           </div>
         </div>
         <button onClick={onClose || reset} style={{ background: 'rgba(84,84,88,0.35)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
           <X size={16} color="rgba(235,235,245,0.8)" />
         </button>
       </div>
-
-      {/* Main Content Area */}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: 16, gap: 16 }}>
-        
-        {/* Intro text when ready */}
         {phase === 'ready' && (
           <div style={{ textAlign: 'center', background: 'rgba(10,132,255,0.08)', border: '1px solid rgba(10,132,255,0.2)', padding: '16px', borderRadius: 12 }}>
             <Activity size={32} color="#0A84FF" style={{ margin: '0 auto 8px' }} />
@@ -206,41 +215,33 @@ export default function VideoAnalysis({ model, onClose }) {
             </p>
           </div>
         )}
-
-        {/* Split Screen Container */}
-        <div style={{ 
-          display: 'flex', 
-          flexDirection: window.innerWidth < 768 ? 'column' : 'row', 
-          gap: 12, 
-          width: '100%',
-          flex: 1
-        }}>
-          
-          {/* Left: Raw Video */}
+        <div style={{ display: 'flex', flexDirection: window.innerWidth < 768 ? 'column' : 'row', gap: 12, width: '100%', flex: 1 }}>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#111', borderRadius: 12, overflow: 'hidden', border: '0.5px solid rgba(84,84,88,0.4)' }}>
             <div style={{ padding: '8px 12px', background: 'rgba(28,28,30,0.9)', fontSize: 12, fontWeight: 600, color: 'rgba(235,235,245,0.8)', fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '0.5px solid rgba(84,84,88,0.4)' }}>
               Raw Footage
             </div>
             <div style={{ position: 'relative', flex: 1, minHeight: 200 }}>
-              <video 
-                ref={videoRef} 
-                src="/demo-video.mp4" 
-                playsInline 
-                muted 
-                crossOrigin="anonymous" 
-                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain' }} 
+              <video
+                ref={videoRef}
+                src="/demo-video.mp4"
+                playsInline
+                muted
+                crossOrigin="anonymous"
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain' }}
               />
             </div>
           </div>
-
-          {/* Right: AI Analysis Overlay */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#111', borderRadius: 12, overflow: 'hidden', border: '0.5px solid rgba(84,84,88,0.4)' }}>
             <div style={{ padding: '8px 12px', background: 'rgba(28,28,30,0.9)', fontSize: 12, fontWeight: 600, color: '#0A84FF', fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '0.5px solid rgba(84,84,88,0.4)', display: 'flex', justifyContent: 'space-between' }}>
               <span>AI Analysis</span>
-              {phase === 'processing' && <span style={{ color: '#30D158' }}>Scanning...</span>}
+              {phase === 'processing' && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ color: '#30D158' }}>Scanning...</span>
+                  <span style={{ color: '#FF9F0A', fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fps} FPS</span>
+                </span>
+              )}
             </div>
             <div style={{ position: 'relative', flex: 1, minHeight: 200, background: '#000' }}>
-              {/* Fallback placeholder when not playing */}
               {(phase === 'ready' || phase === 'done') && (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', zIndex: 10 }}>
                   <div style={{ textAlign: 'center' }}>
@@ -251,16 +252,11 @@ export default function VideoAnalysis({ model, onClose }) {
                   </div>
                 </div>
               )}
-              {/* Sync Canvas */}
               <canvas ref={displayCanvasRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain' }} />
-              {/* Bounding Box Overlay Canvas */}
               <canvas ref={overlayRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain' }} />
             </div>
           </div>
-
         </div>
-
-        {/* Summary Screen */}
         {phase === 'done' && summary && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
             <div style={{ background: 'rgba(28,28,30,0.9)', borderRadius: 14, padding: 16, border: '0.5px solid rgba(84,84,88,0.4)' }}>
@@ -283,8 +279,6 @@ export default function VideoAnalysis({ model, onClose }) {
           </div>
         )}
       </div>
-
-      {/* Footer Controls */}
       <div style={{ flexShrink: 0, padding: '12px 16px', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)', background: 'rgba(18,18,18,0.95)', borderTop: '0.5px solid rgba(84,84,88,0.4)', display: 'flex', gap: 10, zIndex: 1 }}>
         {(phase === 'ready' || phase === 'done') && (
           <button

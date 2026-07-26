@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import 'leaflet.heat';
 import { useNavigate } from 'react-router-dom';
-import { Map as MapIcon, Camera, PlusCircle, LocateFixed, Square, Upload, Navigation, AlertTriangle, Wifi } from 'lucide-react';
+import { Map as MapIcon, Camera, PlusCircle, LocateFixed, Square, Upload, Navigation, AlertTriangle, Wifi, Mic, Check } from 'lucide-react';
 import './index.css';
 import RecordView from './RecordView';
 import SearchBar from './components/SearchBar';
@@ -14,6 +14,7 @@ import CameraPiP from './components/CameraPiP';
 import DriveModal from './components/DriveModal';
 import { useNavigation } from './hooks/useNavigation';
 import { useGPSLocation } from './hooks/useGPSLocation';
+import { useVoiceAssistant } from './hooks/useVoiceAssistant';
 import { supabase, signInAnonymously } from './supabaseClient';
 import * as tf from '@tensorflow/tfjs';
 import { parseYoloOutput } from './utils/tfjsParser';
@@ -144,22 +145,113 @@ export default function App() {
   const { location: gpsLocation, speedKmh, rawLocationRef } = useGPSLocation();
   const nav = useNavigation(userLocation, speedKmh);
 
+  const handleVoiceIntent = useCallback(async (intent) => {
+    const speak = (text) => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      window.speechSynthesis.speak(utterance);
+    };
+
+    if (!userLocation) {
+      speak("GPS location not available, sir.");
+      return;
+    }
+    speak("Reported sir.");
+
+    try {
+      let blob = null;
+      let streamToStop = null;
+      let videoEl = liveCamRef.current;
+
+      if (!videoEl || !camStream) {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        streamToStop = stream;
+        videoEl = document.createElement('video');
+        videoEl.srcObject = stream;
+        await videoEl.play();
+        await new Promise(r => setTimeout(r, 600)); // wait for exposure
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = videoEl.videoWidth;
+      canvas.height = videoEl.videoHeight;
+      canvas.getContext('2d').drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+      blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.9));
+
+      if (streamToStop) {
+        streamToStop.getTracks().forEach(t => t.stop());
+      }
+
+      const optimisticId = `optimistic_voice_${Date.now()}`;
+      setHazards(prev => [...prev, {
+        id: optimisticId,
+        type: 'pending_voice',
+        severity_score: 3,
+        status: 'under_review',
+        source: 'voice',
+        location: `POINT(${userLocation[1]} ${userLocation[0]})`,
+        created_at: new Date().toISOString(),
+      }]);
+
+      const result = await analyzeImageWithGemini(blob, intent);
+      let hazardType = result.type || 'pothole';
+      let hazardSeverity = result.severity || 3;
+      let hazardStatus = result.detected ? 'verified' : 'under_review';
+
+      let imageUrl = null;
+      const fileName = `voice_${Date.now()}_${Math.random().toString(36).slice(7)}.jpg`;
+      const { data: uploadData, error: uploadErr } = await supabase.storage.from('hazard-images').upload(fileName, blob);
+      if (!uploadErr && uploadData) {
+        imageUrl = supabase.storage.from('hazard-images').getPublicUrl(fileName).data.publicUrl;
+      }
+
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('report_hazard_photo', {
+        p_type: hazardType,
+        p_lat: userLocation[0],
+        p_lon: userLocation[1],
+        p_severity: hazardSeverity,
+        p_confidence: result.confidence || 0.5,
+        p_image_url: imageUrl,
+      });
+
+      if (rpcErr) throw rpcErr;
+      
+      if (hazardStatus === 'verified') {
+        await supabase.rpc('admin_update_hazard', { p_hazard_id: rpcData, p_type: hazardType, p_severity: hazardSeverity, p_status: 'verified' });
+      }
+
+      setHazards(prev => prev.map(h => h.id === optimisticId ? { ...h, id: rpcData, type: hazardType, severity_score: hazardSeverity, status: hazardStatus, image_url: imageUrl, source: 'voice' } : h));
+
+    } catch (e) {
+      console.error('Voice report failed:', e);
+    }
+  }, [userLocation, camStream]);
+
+  const voice = useVoiceAssistant(handleVoiceIntent);
+
   useEffect(() => {
     async function loadModel() {
-      try {
-        await tf.setBackend('webgl');
-        await tf.ready();
-      } catch {
-        await tf.setBackend('wasm');
-        await tf.ready();
+      let backend = 'cpu';
+      const backends = ['webgpu', 'webgl', 'wasm', 'cpu'];
+      for (const b of backends) {
+        try {
+          await tf.setBackend(b);
+          await tf.ready();
+          backend = b;
+          break;
+        } catch { continue; }
       }
+      console.log(`[StreetIQ] TF.js backend: ${backend} | GPU: ${backend === 'webgpu' || backend === 'webgl'}`);
       try {
-        const m = await tf.loadGraphModel('/model/model.json');
-        const warmup = tf.zeros([1, 640, 640, 3]);
-        const out = m.execute(warmup);
-        if (Array.isArray(out)) out.forEach(t => t.dispose()); else out.dispose();
-        warmup.dispose();
+        const m = await tf.loadGraphModel('/model/model.json?v=3');
+        for (let i = 0; i < 3; i++) {
+          const warmup = tf.zeros([1, 640, 640, 3]);
+          const out = m.execute(warmup);
+          if (Array.isArray(out)) out.forEach(t => t.dispose()); else out.dispose();
+          warmup.dispose();
+        }
         setModel(m);
+        console.log(`[StreetIQ] Model loaded & warmed up on ${backend}`);
       } catch (e) {
         console.error('Model load failed:', e);
       }
@@ -421,6 +513,14 @@ export default function App() {
           <img src="/logo.png" alt="StreetIQ" style={{ width: 22, height: 22, objectFit: 'contain', display: 'block' }} />
         </button>
 
+        <button
+          className={`voice-btn ${voice.isListening ? 'active' : ''} ${voice.isAwake ? 'awake' : ''}`}
+          onClick={voice.toggleListening}
+          title="Voice Assistant"
+        >
+          <Mic size={18} strokeWidth={voice.isListening ? 2.5 : 2} />
+        </button>
+
         <MapContainer ref={mapRef} center={initialPosition} zoom={13} zoomControl={false} style={{ height: '100%', width: '100%' }}>
           <MapController center={userLocation} isNavigating={nav.isNavigating} heading={nav.heading} />
           <LayersControl position="bottomright">
@@ -461,6 +561,11 @@ export default function App() {
                     {isPhotoReport && (
                       <span style={{ display: 'inline-block', marginLeft: 6, fontSize: 10, fontWeight: 600, background: 'rgba(255,159,10,0.2)', color: '#FF9F0A', border: '1px solid rgba(255,159,10,0.4)', borderRadius: 10, padding: '1px 7px' }}>
                         ⚠ Unverified
+                      </span>
+                    )}
+                    {h.status === 'verified' && (h.source === 'voice' || h.source === 'photo') && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 6, fontSize: 10, fontWeight: 700, background: 'rgba(48,209,88,0.15)', color: '#30D158', border: '1px solid rgba(48,209,88,0.4)', borderRadius: 10, padding: '1px 7px' }}>
+                        <Check size={10} strokeWidth={3} /> AI Verified
                       </span>
                     )}
                     <br />

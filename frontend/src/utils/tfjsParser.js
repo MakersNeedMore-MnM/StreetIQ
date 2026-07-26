@@ -1,13 +1,25 @@
 import * as tf from '@tensorflow/tfjs';
 
-const LABELS = ['D00 Crack', 'D10 Crack', 'D20 Crack', 'D40 Pothole'];
+const LABELS = ['D00 Crack', 'D10 Crack', 'D20 Crack', 'D40 Pothole', 'Repair'];
+
+const RDD_TO_APP_TYPE = {
+  'D00 Crack': 'crack',
+  'D10 Crack': 'crack',
+  'D20 Crack': 'crack',
+  'D40 Pothole': 'pothole',
+  'Repair': 'crack',
+};
+
+function mapToAppType(rawLabel) {
+  return RDD_TO_APP_TYPE[rawLabel] || 'crack';
+}
 
 function extractTensor(output) {
   if (Array.isArray(output)) return output[0];
   return output;
 }
 
-export async function parseYoloOutputAll(output, threshold = 0.15) {
+export async function parseYoloOutputAll(output, threshold = 0.10) {
   const tensor = extractTensor(output);
   const shape = tensor.shape;
   if (shape.length !== 3) return [];
@@ -18,7 +30,7 @@ export async function parseYoloOutputAll(output, threshold = 0.15) {
   const numClasses = numFeatures - 4;
   if (numClasses <= 0) return [];
   const data = await tensor.data();
-  const detections = [];
+  const rawDetections = [];
   for (let b = 0; b < numBoxes; b++) {
     let maxProb = -Infinity;
     let maxIdx = 0;
@@ -29,22 +41,36 @@ export async function parseYoloOutputAll(output, threshold = 0.15) {
     }
     if (maxProb <= threshold) continue;
     const get = (f) => colsMajor ? data[f * numBoxes + b] : data[b * numFeatures + f];
+    const cx = get(0);
+    const cy = get(1);
     const w = get(2);
     const h = get(3);
     if (w <= 0 || h <= 0) continue;
-    detections.push({
+    if (w < 5 || h < 5) continue;
+    rawDetections.push({
       classIndex: maxIdx,
-      className: LABELS[maxIdx] || 'unknown',
+      className: mapToAppType(LABELS[maxIdx]),
       confidence: maxProb,
-      bbox: { cx: get(0), cy: get(1), w, h },
+      bbox: { cx, cy, w, h },
+      nmsBox: [cy - h / 2, cx - w / 2, cy + h / 2, cx + w / 2],
     });
   }
-  if (detections.length <= 1) return detections;
-  detections.sort((a, b) => b.confidence - a.confidence);
-  return detections.length > 20 ? detections.slice(0, 20) : detections;
+  if (rawDetections.length === 0) return [];
+  const boxesTensor = tf.tensor2d(rawDetections.map(d => d.nmsBox), [rawDetections.length, 4]);
+  const scoresTensor = tf.tensor1d(rawDetections.map(d => d.confidence));
+  const nmsIndices = await tf.image.nonMaxSuppressionAsync(boxesTensor, scoresTensor, 50, 0.5, threshold);
+  const selectedIndices = await nmsIndices.data();
+  boxesTensor.dispose();
+  scoresTensor.dispose();
+  nmsIndices.dispose();
+  const finalDetections = [];
+  for (let i = 0; i < selectedIndices.length; i++) {
+    finalDetections.push(rawDetections[selectedIndices[i]]);
+  }
+  return finalDetections;
 }
 
 export async function parseYoloOutput(output, threshold = 0.15) {
   const all = await parseYoloOutputAll(output, threshold);
-  return all.length > 1 ? all.slice(0, 1) : all;
+  return all.length > 0 ? [all[0]] : [];
 }

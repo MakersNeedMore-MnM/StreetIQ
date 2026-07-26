@@ -64,7 +64,7 @@ export default function RecordView({ onHazardDetected, isRecording, setIsRecordi
         const predictions = tf.tidy(() => {
           return model.execute(
             tf.browser.fromPixels(videoRef.current)
-              .resizeBilinear([640, 640]).expandDims(0).toFloat()
+              .resizeBilinear([640, 640]).expandDims(0).toFloat().div(255.0)
           );
         });
         const detections = await parseYoloOutput(predictions, 0.5);
