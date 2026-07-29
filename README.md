@@ -94,3 +94,84 @@ Our model underwent rigorous evaluation to ensure it can run efficiently in the 
 **Database & Cloud:**
 - Supabase (PostgreSQL + PostGIS for spatial queries)
 - Supabase Realtime (Hazard broadcasts)
+
+---
+
+## Local Setup & Installation
+
+Follow these steps to run StreetIQ locally on your machine.
+
+### Prerequisites
+- Node.js (v18+)
+- npm or yarn
+- A Supabase Project (for database and realtime features)
+
+### 1. Backend Setup
+1. Navigate to the backend folder:
+   ```bash
+   cd backend
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Create a `.env` file in the `backend` directory and configure the following variables:
+   ```env
+   PORT=3001
+   ALLOWED_ORIGINS=http://localhost:5173
+   GEMINI_API_KEY=your_gemini_api_key_here
+   OSRM_URL=https://router.project-osrm.org
+   PHOTON_URL=https://photon.komoot.io
+   NODE_ENV=development
+   ```
+4. Start the backend development server:
+   ```bash
+   npm run dev
+   ```
+
+### 2. Frontend Setup
+1. Navigate to the frontend folder in a new terminal:
+   ```bash
+   cd frontend
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Create a `.env` file in the `frontend` directory and add your Supabase and Backend URLs:
+   ```env
+   VITE_BACKEND_URL=http://localhost:3001
+   VITE_SUPABASE_URL=your_supabase_project_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+4. Start the frontend application:
+   ```bash
+   npm run dev
+   ```
+   The app will typically run on `http://localhost:5173`.
+
+---
+
+## File Structure & Responsibilities
+
+Understanding the repository structure will help you navigate the codebase efficiently:
+
+- **`frontend/`**: The React + Vite web application. Contains UI components, map integration (Leaflet), and TensorFlow.js inference logic (e.g., `src/components/VideoAnalysis.jsx`).
+- **`backend/`**: The Node.js + Express server handling API requests, WebSocket connections for real-time tracking, and wrappers for Geocoding/Routing (e.g., `src/services/`).
+- **`training/`**: Documentation, metrics, and data related to our custom YOLOv8 model training.
+
+### ⚠️ Restricted Files & Contribution Guidelines
+As StreetIQ is an open-source project, certain files related to core infrastructure, administration, and internal credentials **must not be modified** by external contributors. Please ensure your pull requests do not alter the following:
+
+1. **Supabase & Database Configuration:**
+   - The entire `supabase/` directory (Migrations and database schemas)
+   - `frontend/src/supabaseClient.js` (Database connection configuration)
+2. **Admin & Government Panels:**
+   - `frontend/src/pages/AdminDashboard.jsx`
+   - `frontend/src/pages/AdminLoginPage.jsx`
+   - `frontend/src/pages/GovDashboard.jsx`
+   - `frontend/src/pages/GovLoginPage.jsx`
+3. **Internal Documents & Assets:**
+   - Any internal company files, including **ID cards**, **offer letters**, or proprietary internal assets, are strictly restricted and not to be touched.
+
+By adhering to these guidelines, we can ensure the security and stability of the platform for everyone.
