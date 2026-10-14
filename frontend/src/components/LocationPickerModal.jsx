@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -270,7 +270,11 @@ export default function LocationPickerModal({ initialLocation, onConfirm, onClos
             zoomControl={false}
             style={{ height: '100%', width: '100%' }}
           >
-            <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+            <TileLayer
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+              attribution="Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
+              maxZoom={16}
+            />
             <FlyTo target={flyTarget} />
             <DraggableMarker position={markerPos} onMove={(ll) => setMarkerPos([ll.lat, ll.lng])} />
           </MapContainer>

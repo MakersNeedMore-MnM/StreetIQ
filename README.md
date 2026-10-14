@@ -115,14 +115,19 @@ Follow these steps to run StreetIQ locally on your machine.
    ```bash
    npm install
    ```
-3. Create a `.env` file in the `backend` directory and configure the following variables:
+3. Copy `.env.example` to `.env` in the `backend` directory and adjust configurations as needed:
+   ```bash
+   cp .env.example .env
+   ```
+   Variables configured in `backend/.env`:
    ```env
    PORT=3001
-   ALLOWED_ORIGINS=http://localhost:5173
-   GEMINI_API_KEY=your_gemini_api_key_here
+   ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
    OSRM_URL=https://router.project-osrm.org
    PHOTON_URL=https://photon.komoot.io
    NODE_ENV=development
+   GEMINI_API_KEY=your_gemini_api_key_here
+   GEMINI_MODEL=gemini-3.8-flash
    ```
 4. Start the backend development server:
    ```bash
@@ -138,17 +143,32 @@ Follow these steps to run StreetIQ locally on your machine.
    ```bash
    npm install
    ```
-3. Create a `.env` file in the `frontend` directory and add your Supabase and Backend URLs:
+3. Copy `.env.example` to `.env` in the `frontend` directory:
+   ```bash
+   cp .env.example .env
+   ```
+   Variables configured in `frontend/.env`:
    ```env
    VITE_BACKEND_URL=http://localhost:3001
-   VITE_SUPABASE_URL=your_supabase_project_url
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
    ```
 4. Start the frontend application:
    ```bash
    npm run dev
    ```
    The app will typically run on `http://localhost:5173`.
+
+---
+
+## Real-Time Forward Hazard Alerts
+
+StreetIQ features an intelligent forward-facing hazard detection and alerting system during active turn-by-turn navigation:
+
+- **Forward Cone Filtering**: Evaluates driver coordinates, GPS heading/compass bearing, and incoming hazard locations. Hazards within 300 meters inside a forward $\pm 45^\circ$ angular cone are prioritized.
+- **HUD Integration**: Renders clean, high-visibility hazard alerts directly onto `NavigationHUD` including hazard classification (`pothole`, `crack`, `waterlogging`, `debris`), severity levels (`low`, `medium`, `high`, `critical`), and distance counters.
+- **Voice Guidance**: Announces verified road hazards via the browser's Web Speech API with per-hazard cooldown deduplication to prevent repetitive announcements. Can be toggled on/off directly from the HUD.
+- **Scope & Boundary**: Hazard alerting utilizes angular heading and proximity cone calculations without requiring external map tile API keys. It runs strictly client-side and gracefully handles unconfigured databases.
 
 ---
 
