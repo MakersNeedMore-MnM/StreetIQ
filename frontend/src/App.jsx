@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, ZoomControl, useMap, LayersControl, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -15,9 +15,10 @@ import DriveModal from './components/DriveModal';
 import { useNavigation } from './hooks/useNavigation';
 import { useGPSLocation } from './hooks/useGPSLocation';
 import { useVoiceAssistant } from './hooks/useVoiceAssistant';
+import useHazardAlerts from './hooks/useHazardAlerts';
 import { supabase, signInAnonymously } from './supabaseClient';
 import * as tf from '@tensorflow/tfjs';
-import { parseYoloOutput } from './utils/tfjsParser';
+
 import { analyzeImageWithGemini } from './utils/geminiAnalyzer';
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -63,11 +64,7 @@ function MapController({ center, isNavigating, heading }) {
     }
     if (heading !== null && heading !== undefined) {
       map.setBearing ? map.setBearing(heading) : null;
-      const container = map.getContainer();
-      if (container) {
-        const pane = container.querySelector('.leaflet-map-pane');
-        if (pane) pane.style.transform = pane.style.transform;
-      }
+      // No additional map pane adjustments needed
     }
   }, [center, isNavigating, heading, map]);
   return null;
@@ -87,7 +84,7 @@ const parseWKBHex = (hex) => {
     const lon = view.getFloat64(offset, le);
     const lat = view.getFloat64(offset + 8, le);
     if (isFinite(lat) && isFinite(lon)) return [lat, lon];
-  } catch {}
+  } catch { /* ignore parsing errors */ }
   return null;
 };
 const parseLocation = (loc, fallback) => {
@@ -104,7 +101,7 @@ const parseLocation = (loc, fallback) => {
       if (geo?.type === 'Point' && Array.isArray(geo.coordinates)) {
         return [geo.coordinates[1], geo.coordinates[0]];
       }
-    } catch {}
+      } catch { /* ignore parsing errors */ }
   }
   if (loc?.type === 'Point' && Array.isArray(loc.coordinates)) {
     return [loc.coordinates[1], loc.coordinates[0]];
@@ -121,6 +118,7 @@ export default function App() {
   const [userLocation, setUserLocation] = useState(null);
   const mapRef = useRef(null);
   const hasAutoCentered = useRef(false);
+const hasSetUserLocation = useRef(false);
   const [model, setModel] = useState(null);
   const [destination, setDestination] = useState(null);
   const [showDirections, setShowDirections] = useState(false);
@@ -129,7 +127,7 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [manualType, setManualType] = useState('pothole');
   const [manualSeverity, setManualSeverity] = useState(3);
-  const [capturedPhoto, setCapturedPhoto] = useState(null);
+
   const [isUploading, setIsUploading] = useState(false);
   const liveCamRef = useRef(null);
   const liveCanvasRef = useRef(null);
@@ -144,6 +142,18 @@ export default function App() {
 
   const { location: gpsLocation, speedKmh, rawLocationRef } = useGPSLocation();
   const nav = useNavigation(userLocation, speedKmh);
+
+  const getHazardCoordinates = useCallback((hazard) => {
+    return parseLocation(hazard?.location, null);
+  }, []);
+
+  const { activeAlert, speechEnabled, setSpeechEnabled } = useHazardAlerts({
+    userLocation,
+    heading: nav.heading,
+    hazards,
+    isNavigating: nav.isNavigating,
+    getHazardCoordinates,
+  });
 
   const handleVoiceIntent = useCallback(async (intent) => {
     const speak = (text) => {
@@ -262,7 +272,10 @@ export default function App() {
   useEffect(() => {
     if (!gpsLocation) return;
     currentPositionRef.current = gpsLocation;
-    setUserLocation(gpsLocation);
+    if (!hasSetUserLocation.current) {
+      setUserLocation(gpsLocation);
+      hasSetUserLocation.current = true;
+    }
     if (!hasAutoCentered.current && mapRef.current) {
       mapRef.current.setView(gpsLocation, 15, { animate: false });
       hasAutoCentered.current = true;
@@ -271,6 +284,13 @@ export default function App() {
 
   useEffect(() => {
     async function init() {
+      // Guard against repetitive network failures if running with placeholder credentials
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+      if (!supabaseUrl || supabaseUrl.includes('placeholder-project.supabase.co')) {
+        console.info('[StreetIQ] Running in local demo mode without configured Supabase credentials. Cloud hazard sync is paused.');
+        return;
+      }
+
       await signInAnonymously();
       const { data } = await supabase.from('hazards').select('*');
       if (data) setHazards(data.filter(h => h.status === 'verified' || (h.source === 'photo' && h.status === 'under_review')));
@@ -339,24 +359,6 @@ export default function App() {
     });
   }, []);
 
-  const openLiveCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-      setCamStream(stream);
-      if (liveCamRef.current) {
-        liveCamRef.current.srcObject = stream;
-        liveCamRef.current.play();
-      }
-    } catch {
-      alert('Camera access is required for live capture.');
-    }
-  };
-
-  const stopLiveCamera = () => {
-    camStream?.getTracks().forEach(t => t.stop());
-    setCamStream(null);
-  };
-
   const captureFromLiveCamera = () => {
     if (!liveCamRef.current || !liveCanvasRef.current) return;
     const canvas = liveCanvasRef.current;
@@ -400,17 +402,28 @@ export default function App() {
     setManualType('pothole');
     setManualSeverity(3);
     setSubmitSuccess(false);
-    setCapturedPhoto(null);
   };
 
-  useEffect(() => {
-    if (activeTab === 'report') {
-      resetReportForm();
-      openLiveCamera();
-    } else {
-      stopLiveCamera();
+  const openLiveCamera = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      setCamStream(stream);
+      if (liveCamRef.current) {
+        liveCamRef.current.srcObject = stream;
+        liveCamRef.current.play();
+      }
+    } catch {
+      alert('Camera access is required for live capture.');
     }
-  }, [activeTab]);
+  }, []);
+
+  const stopLiveCamera = useCallback(() => {
+    setCamStream((stream) => {
+      stream?.getTracks().forEach(t => t.stop());
+      return null;
+    });
+  }, []);
+
 
   const submitPhotoReport = async () => {
     if (!selectedImage) return;
@@ -525,16 +538,32 @@ export default function App() {
           <MapController center={userLocation} isNavigating={nav.isNavigating} heading={nav.heading} />
           <LayersControl position="bottomright">
             <LayersControl.BaseLayer checked name="Dark">
-              <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution="&copy; OpenStreetMap" />
+              <TileLayer
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+                attribution="Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
+                maxZoom={16}
+              />
             </LayersControl.BaseLayer>
-            <LayersControl.BaseLayer name="Light">
-              <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution="&copy; OpenStreetMap" />
+            <LayersControl.BaseLayer name="Street">
+              <TileLayer
+                url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution="&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors"
+                maxZoom={19}
+              />
             </LayersControl.BaseLayer>
             <LayersControl.BaseLayer name="Satellite">
-              <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="Tiles &copy; Esri" />
+              <TileLayer
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                attribution="Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
+                maxZoom={19}
+              />
             </LayersControl.BaseLayer>
             <LayersControl.BaseLayer name="Terrain">
-              <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}" attribution="Tiles &copy; Esri" />
+              <TileLayer
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
+                attribution="Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community"
+                maxZoom={19}
+              />
             </LayersControl.BaseLayer>
           </LayersControl>
           <ZoomControl position="bottomleft" />
@@ -589,7 +618,18 @@ export default function App() {
       </div>
 
       {nav.isNavigating && (
-        <NavigationHUD step={nav.currentStep} maneuverIcon={nav.maneuverIcon} distanceToNext={nav.distanceToNext} eta={nav.eta} heading={nav.heading} speedKmh={speedKmh} onStop={handleStopNav} />
+        <NavigationHUD
+          step={nav.currentStep}
+          maneuverIcon={nav.maneuverIcon}
+          distanceToNext={nav.distanceToNext}
+          eta={nav.eta}
+          heading={nav.heading}
+          speedKmh={speedKmh}
+          onStop={handleStopNav}
+          activeAlert={activeAlert}
+          speechEnabled={speechEnabled}
+          onToggleSpeech={() => setSpeechEnabled(prev => !prev)}
+        />
       )}
 
       {nav.isNavigating && isDriveRecording && model && (

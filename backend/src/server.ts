@@ -88,18 +88,18 @@ app.post('/api/gemini-analyze', upload.single('image'), async (req: Request, res
     return;
   }
   try {
-    const { GoogleGenerativeAI } = require('@google/generative-ai');
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const { GoogleGenAI } = require('@google/genai');
+    const ai = new GoogleGenAI({ apiKey });
+    const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 
     const mimeType = req.file.mimetype || 'image/jpeg';
     const intent = req.body.intent;
-    
+
     let prompt = `You are an expert road hazard detection AI. Look carefully at this road image.\n\n`;
     if (intent) {
       prompt += `The user explicitly reported the following via voice: "${intent}". Verify if the image confirms this report.\n\n`;
     }
-    
+
     prompt += `Your task: detect if there is a road hazard visible.
 
 You MUST respond with ONLY this JSON (no markdown fences, no extra text):
@@ -113,17 +113,21 @@ Rules:
 - boundingBox: approximate location of hazard (0-1 scale), null if unsure
 - If detected is false, still return all fields with type="none", severity=1, confidence=0, boundingBox=null`;
 
-    const imagePart = {
-      inlineData: {
-        data: req.file.buffer.toString('base64'),
-        mimeType
-      },
-    };
+    const result = await ai.models.generateContent({
+      model: modelName,
+      contents: [
+        {
+          inlineData: {
+            mimeType,
+            data: req.file.buffer.toString('base64'),
+          },
+        },
+        { text: prompt },
+      ],
+    });
 
-    const result = await model.generateContent([prompt, imagePart]);
-    const response = await result.response;
-    const text = response.text().trim();
-    
+    const text = (result.text ?? '').trim();
+
     logger.info({ rawText: text }, 'gemini raw response');
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {

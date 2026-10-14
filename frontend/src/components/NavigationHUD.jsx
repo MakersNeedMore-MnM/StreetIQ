@@ -1,5 +1,4 @@
-import React from 'react';
-import { X } from 'lucide-react';
+import { X, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
 
 function formatDist(m) {
   if (m === null || m === undefined) return '--';
@@ -12,7 +11,25 @@ function headingLabel(deg) {
   return dirs[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
 }
 
-export default function NavigationHUD({ step, maneuverIcon, distanceToNext, eta, heading, speedKmh, onStop }) {
+const HAZARD_LABELS = {
+  pothole: 'Pothole',
+  crack: 'Road Crack',
+  waterlogging: 'Waterlogging',
+  debris: 'Debris',
+};
+
+export default function NavigationHUD({
+  step,
+  maneuverIcon,
+  distanceToNext,
+  eta,
+  heading,
+  speedKmh,
+  onStop,
+  activeAlert = null,
+  speechEnabled = true,
+  onToggleSpeech,
+}) {
   if (!step) return null;
 
   const isArriving = step.maneuver?.type === 'arrive';
@@ -65,10 +82,121 @@ export default function NavigationHUD({ step, maneuverIcon, distanceToNext, eta,
           <button
             onClick={onStop}
             style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+            aria-label="Stop navigation"
           >
             <X size={16} color="white" />
           </button>
         </div>
+
+        {activeAlert && (
+          <div
+            style={{
+              background:
+                activeAlert.severity >= 4
+                  ? 'rgba(255, 69, 58, 0.94)'
+                  : 'rgba(255, 159, 10, 0.94)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: 16,
+              padding: '10px 14px',
+              boxShadow:
+                activeAlert.severity >= 4
+                  ? '0 6px 24px rgba(255, 69, 58, 0.35)'
+                  : '0 6px 24px rgba(255, 159, 10, 0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              border: '0.5px solid rgba(255, 255, 255, 0.25)',
+              animation: 'fadeIn 0.2s ease-in-out',
+            }}
+            role="alert"
+            aria-live="polite"
+          >
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                background: 'rgba(0, 0, 0, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <AlertTriangle size={20} color="#FFFFFF" strokeWidth={2.4} />
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: '#FFFFFF',
+                  fontFamily: 'Inter, sans-serif',
+                  letterSpacing: -0.2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <span>
+                  {HAZARD_LABELS[activeAlert.type] || activeAlert.type || 'Hazard'}
+                </span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    padding: '1px 6px',
+                    borderRadius: 6,
+                    background: 'rgba(0, 0, 0, 0.28)',
+                    color: 'rgba(255, 255, 255, 0.9)',
+                  }}
+                >
+                  Severity {typeof activeAlert.severity === 'number' && Number.isFinite(activeAlert.severity) ? activeAlert.severity : '3'}/5
+                </span>
+              </div>
+
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: 'rgba(255, 255, 255, 0.92)',
+                  fontFamily: 'Inter, sans-serif',
+                  marginTop: 2,
+                }}
+              >
+                {formatDist(activeAlert.distanceM)} ahead
+              </div>
+            </div>
+
+            {onToggleSpeech && (
+              <button
+                type="button"
+                onClick={onToggleSpeech}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  background: 'rgba(0, 0, 0, 0.22)',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+                aria-label={speechEnabled ? 'Mute voice hazard alerts' : 'Enable voice hazard alerts'}
+                title={speechEnabled ? 'Voice alerts on' : 'Voice alerts muted'}
+              >
+                {speechEnabled ? (
+                  <Volume2 size={16} color="#FFFFFF" />
+                ) : (
+                  <VolumeX size={16} color="rgba(255, 255, 255, 0.65)" />
+                )}
+              </button>
+            )}
+          </div>
+        )}
 
         {heading !== null && (
           <div style={{ alignSelf: 'flex-end', background: 'rgba(28,28,30,0.88)', backdropFilter: 'blur(16px)', borderRadius: 12, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6, border: '0.5px solid rgba(84,84,88,0.5)' }}>

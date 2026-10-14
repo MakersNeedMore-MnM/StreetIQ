@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ArrowUpRight, Cpu, ShieldCheck, Zap, Wifi, Layers, Video, Lock, Building2 } from 'lucide-react';
 
@@ -124,7 +124,7 @@ export default function AboutPage() {
             The model was exported to TensorFlow.js format and optimised for real-time mobile browser inference. No third-party API. No generic weights. Built specifically for the roads we drive on.
           </p>
           <a
-            href="https://github.com/adityaverma9777/StreetIQ"
+            href="https://github.com/MakersNeedMore-MnM/StreetIQ/tree/main/training"
             target="_blank"
             rel="noopener noreferrer"
             style={{
@@ -153,7 +153,7 @@ export default function AboutPage() {
             <ArrowUpRight size={18} />
           </a>
           <a
-            href="https://github.com/adityaverma9777/StreetIQ"
+            href="https://github.com/MakersNeedMore-MnM/StreetIQ"
             target="_blank"
             rel="noopener noreferrer"
             style={{
