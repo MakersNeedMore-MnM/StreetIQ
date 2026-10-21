@@ -1,3 +1,4 @@
+import { OSM_TILE_URL, OSM_ATTRIBUTION, DARK_TILE_CLASS } from './config/mapTiles';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, ZoomControl, useMap, LayersControl, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -525,10 +526,10 @@ export default function App() {
           <MapController center={userLocation} isNavigating={nav.isNavigating} heading={nav.heading} />
           <LayersControl position="bottomright">
             <LayersControl.BaseLayer checked name="Dark">
-              <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution="&copy; OpenStreetMap" />
+              <TileLayer url={OSM_TILE_URL} attribution={OSM_ATTRIBUTION} className={DARK_TILE_CLASS} />
             </LayersControl.BaseLayer>
             <LayersControl.BaseLayer name="Light">
-              <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution="&copy; OpenStreetMap" />
+              <TileLayer url={OSM_TILE_URL} attribution={OSM_ATTRIBUTION} />
             </LayersControl.BaseLayer>
             <LayersControl.BaseLayer name="Satellite">
               <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" attribution="Tiles &copy; Esri" />

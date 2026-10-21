@@ -884,3 +884,8 @@ body {
   70% { box-shadow: 0 0 0 10px rgba(10, 132, 255, 0); }
   100% { box-shadow: 0 0 0 0 rgba(10, 132, 255, 0); }
 }
+
+/* Darkens OpenStreetMap tiles to match the app's dark theme */
+.dark-map-tiles {
+  filter: invert(100%) hue-rotate(180deg) brightness(0.9) contrast(0.9);
+}

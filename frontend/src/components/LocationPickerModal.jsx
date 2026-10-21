@@ -1,3 +1,4 @@
+import { OSM_TILE_URL, OSM_ATTRIBUTION, DARK_TILE_CLASS } from '../config/mapTiles';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
@@ -270,7 +271,7 @@ export default function LocationPickerModal({ initialLocation, onConfirm, onClos
             zoomControl={false}
             style={{ height: '100%', width: '100%' }}
           >
-            <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+            <TileLayer url={OSM_TILE_URL} attribution={OSM_ATTRIBUTION} className={DARK_TILE_CLASS} />
             <FlyTo target={flyTarget} />
             <DraggableMarker position={markerPos} onMove={(ll) => setMarkerPos([ll.lat, ll.lng])} />
           </MapContainer>
